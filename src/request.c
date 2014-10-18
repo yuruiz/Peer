@@ -15,10 +15,10 @@ Packet *buildDefaultPacket() {
     Packet *pkt = calloc(sizeof(Packet), 1);
 
     uint8_t *serial = pkt->serial;
-    *((uint16_t *) serial) = 15441;
+    *((uint16_t *) serial) = htons(15441);
     *(serial + VERSION_OFFSET) = 1;
-    *((uint16_t *) (serial + HDLEN_OFFSET)) = 16;
-    *((uint16_t *) (serial + PKLEN_OFFET)) = 16;
+    *((uint16_t *) (serial + HDLEN_OFFSET)) = htons(16);
+    *((uint16_t *) (serial + PKLEN_OFFET)) = htons(16);
 
     return pkt;
 
@@ -58,15 +58,16 @@ uint8_t getPacketType(Packet *pkt){
 
 void incPacketSize(Packet *pkt, uint8_t size) {
     uint8_t *serial = pkt->serial;
+    uint16_t CurSize = ntohs(*((uint16_t *) (serial + PKLEN_OFFET)));
+    CurSize += size;
 
-    *((uint16_t *) (serial + PKLEN_OFFET)) += size;
-
+    *((uint16_t *) (serial + PKLEN_OFFET)) = htons(CurSize);
     return;
 }
 
 uint16_t getPacketSize(Packet *pkt) {
     uint8_t *serial = (pkt->serial);
-    return *((uint16_t *) (serial + PKLEN_OFFET));
+    return ntohs(*((uint16_t *) (serial + PKLEN_OFFET)));
 }
 
 uint8_t getHashCount(Packet *pkt){

@@ -21,7 +21,7 @@
 #include "bt_parse.h"
 #include "debug.h"
 
-static const char *const _bt_optstring = "p:c:f:m:i:d:h:t";
+static const char *const _bt_optstring = "p:c:f:m:i:d:h";
 
 void bt_init(bt_config_t *config, int argc, char **argv) {
     bzero(config, sizeof(bt_config_t));
@@ -97,8 +97,6 @@ void bt_parse_command_line(bt_config_t *config) {
                 break;
             case 'i':
                 config->identity = atoi(optarg);
-                break;
-            case 't':
                 break;
             default:
                 bt_usage();
