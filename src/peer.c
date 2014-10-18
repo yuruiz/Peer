@@ -137,6 +137,11 @@ void process_get(char *chunkfile, char *outputfile) {
 
     fclose(requestList.chunkfptr);
 
+    if (requestList.chunkNum == 0) {
+        printf("There is no chunk in the file\n");
+        return;
+    }
+
     printf("Chunk file parsed successfully and the parse result is as below\n");
 
     int i;

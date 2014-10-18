@@ -1,4 +1,5 @@
 *.iml
 *.xml
 .idea/
+example/
 CMAkeLists.txt
