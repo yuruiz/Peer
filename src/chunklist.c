@@ -46,6 +46,7 @@ char **retrieve_chunk_list(Packet *incomingPacket) {
     int num_chunks, head;
 
     chunk_list = (char **) malloc(getHashCount(incomingPacket) * sizeof(char *));
+    memset(chunk_list, 0, getHashCount(incomingPacket) * sizeof(char *));
 
     for (num_chunks = 0; num_chunks < getHashCount(incomingPacket); num_chunks++) {
         chunk_list[num_chunks] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
@@ -75,8 +76,8 @@ char **has_chunks(bt_config_t *config, Packet *p, char **chunk_list) {
         printf("Open has chunk file %s failed\n", config->has_chunk_file);
         exit(EXIT_FAILURE);
     }
-    while (fgets(buf, USERBUF_SIZE, fp)) {
-        printf("here\n");
+    while (!feof(fp)) {
+        fgets(buf, USERBUF_SIZE, fp);
         memset(chunk, 0, SHA1_HASH_LENGTH * 2 + 1);
         sscanf(buf, "%*d %s", chunk);
         for (num_chunks = 0; num_chunks < getHashCount(p); num_chunks++){

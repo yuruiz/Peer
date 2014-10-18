@@ -153,8 +153,6 @@ void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in* from) {
         }
     }
 
-    printf("finished\n");
-
     if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)from, sizeof(*from)) > 0) {
         printf("Send IHAVE request success. %d\n", getPacketSize(pkt));
     } else {

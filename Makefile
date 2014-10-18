@@ -26,7 +26,7 @@ run_client:
 	./peer -p nodes.map -c example/A.haschunks -f /example/C.masterchunks -m 4 -i 1 -d 0
 
 run_server:
-	./peer -p nodes.map -c example/A.haschunks -f /example/C.masterchunks -m 4 -i 2 -d 0
+	./peer -p nodes.map -c example/B.haschunks -f /example/C.masterchunks -m 4 -i 2 -d 0
 
 test: peer_test
 	./peer_test
