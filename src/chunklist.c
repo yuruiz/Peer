@@ -68,7 +68,6 @@ char **has_chunks(bt_config_t *config, Packet *p, char **chunk_list) {
     char chunk[SHA1_HASH_LENGTH * 2 + 1];
     int num_chunks, haschunk_pos;
 
-
     haschunk_pos = 0;
     haschunk_list = (char **) malloc(getHashCount(p) * sizeof(char *));
     memset(haschunk_list, 0, getHashCount(p) * sizeof(char *));
@@ -78,15 +77,16 @@ char **has_chunks(bt_config_t *config, Packet *p, char **chunk_list) {
     }
     while (fgets(buf, USERBUF_SIZE, fp)) {
         printf("here\n");
+        memset(chunk, 0, SHA1_HASH_LENGTH * 2 + 1);
         sscanf(buf, "%*d %s", chunk);
         for (num_chunks = 0; num_chunks < getHashCount(p); num_chunks++){
             if (strncmp(chunk_list[num_chunks], chunk, SHA1_HASH_LENGTH * 2) == 0) {
                 haschunk_list[haschunk_pos] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
+                memset(haschunk_list[haschunk_pos], 0, SHA1_HASH_LENGTH * 2 + 1);
                 strcpy(haschunk_list[haschunk_pos++], chunk);
             }
         }
         memset(buf, 0, USERBUF_SIZE);
-        memset(chunk, 0, SHA1_HASH_LENGTH * 2 + 1);
     }
     fclose(fp);
     return haschunk_list;
