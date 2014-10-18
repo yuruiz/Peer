@@ -144,12 +144,13 @@ void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in* from) {
     setPakcetType(pkt, "IHAVE");
     incPacketSize(pkt, 4);
     printf("Response payload has: \n");
-    printf("size %d\n", size);
     for (num_chunks = 0; num_chunks < size; num_chunks++) {
         uint8_t buf[SHA1_HASH_LENGTH];
-        hex2binary(haschunk_list[num_chunks], SHA1_HASH_LENGTH * 2, buf);
-        insertHash(pkt, buf);
-        printf("%s\n", haschunk_list[num_chunks]);
+        if (haschunk_list[num_chunks] != NULL) {
+            hex2binary(haschunk_list[num_chunks], SHA1_HASH_LENGTH * 2, buf);
+            insertHash(pkt, buf);
+            printf("%s\n", haschunk_list[num_chunks]);
+        }
     }
 
     printf("finished\n");

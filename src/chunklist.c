@@ -71,6 +71,7 @@ char **has_chunks(bt_config_t *config, Packet *p, char **chunk_list) {
 
     haschunk_pos = 0;
     haschunk_list = (char **) malloc(getHashCount(p) * sizeof(char *));
+    memset(haschunk_list, 0, getHashCount(p) * sizeof(char *));
     if ((fp = fopen(config->has_chunk_file, "r")) == NULL) {
         printf("Open has chunk file %s failed\n", config->has_chunk_file);
         exit(EXIT_FAILURE);
