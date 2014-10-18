@@ -56,6 +56,7 @@ char **retrieve_chunk_list(Packet *incomingPacket) {
 
         binary2hex(buf, SHA1_HASH_LENGTH, chunk_list[num_chunks]);
     }
+
     return chunk_list;
 }
 
@@ -67,10 +68,15 @@ char **has_chunks(bt_config_t *config, Packet *p, char **chunk_list) {
     char chunk[SHA1_HASH_LENGTH * 2 + 1];
     int num_chunks, haschunk_pos;
 
+
     haschunk_pos = 0;
     haschunk_list = (char **) malloc(getHashCount(p) * sizeof(char *));
-    fp = fopen(config->has_chunk_file, "r");
-    while (fgets(buf, sizeof(buf), fp)) {
+    if ((fp = fopen(config->has_chunk_file, "r")) == NULL) {
+        printf("Open has chunk file %s failed\n", config->has_chunk_file);
+        exit(EXIT_FAILURE);
+    }
+    while (fgets(buf, USERBUF_SIZE, fp)) {
+        printf("here\n");
         sscanf(buf, "%*d %s", chunk);
         for (num_chunks = 0; num_chunks < getHashCount(p); num_chunks++){
             if (strncmp(chunk_list[num_chunks], chunk, SHA1_HASH_LENGTH * 2) == 0) {

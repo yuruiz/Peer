@@ -69,9 +69,9 @@ void process_inbound_udp(int sock, bt_config_t *config) {
     char **haschunk_list;
 
     fromlen = sizeof(from);
-    spiffy_recvfrom(sock, &incomingPacket, sizeof(incomingPacket), 0, (struct sockaddr *) &from, &fromlen);
+    spiffy_recvfrom(sock, (void*)&(incomingPacket.serial), 1500, 0, (struct sockaddr *) &from, &fromlen);
 //    recvfrom(sock, &incomingPacket, sizeof(incomingPacket), 0, (struct sockaddr *) &from, &fromlen
-
+    printf("%s", incomingPacket.serial);
     // check node
     for (curPeer = config->peers; curPeer != NULL; curPeer = curPeer->next)
         if (strcmp(inet_ntoa(curPeer->addr.sin_addr), inet_ntoa(from.sin_addr))
