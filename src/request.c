@@ -83,7 +83,8 @@ void insertHash(Packet *pkt, uint8_t *hash) {
     uint8_t curHashCount = *(serial + HASHNUM_OFFSET);
 
     /*Copy the hash to the payload*/
-    memcpy(serial + HASH_OFFSET + curHashCount * SHA1_HASH_LENGTH, hash, SHA1_HASH_LENGTH);
+    memcpy(serial + HASH_OFFSET + curHashCount * SHA1_HASH_LENGTH, \
+        hash, SHA1_HASH_LENGTH);
 
     *(serial + HASHNUM_OFFSET) = curHashCount + 1;
 
@@ -92,6 +93,7 @@ void insertHash(Packet *pkt, uint8_t *hash) {
 
 }
 
+// build and send out whohas packet. 
 void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
 
     int packetNum = (cklist->chunkNum + MAX_HASH_NUM - 1) / MAX_HASH_NUM;
@@ -122,8 +124,10 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
 
         for (p = config->peers; p != NULL; p = p->next) {
             if (p->id != config->identity) {
-                if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *) &(p->addr), sizeof(p->addr)) > 0) {
-                    printf("Send whohas request to %d success. %d\n", p->id, getPacketSize(pkt));
+                if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), \
+                    0, (struct sockaddr *) &(p->addr), sizeof(p->addr)) > 0) {
+                    printf("Send whohas request to %d success. %d\n", p->id, \
+                        getPacketSize(pkt));
                 } else {
                     fprintf(stderr, "send packet failed\n");
                 }
@@ -146,7 +150,6 @@ void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in* from) {
     printf("Response payload has: \n");
     for (num_chunks = 0; num_chunks < size; num_chunks++) {
         uint8_t buf[SHA1_HASH_LENGTH];
-      //  memset(buf, 0, SHA1_HASH_LENGTH);
         if (haschunk_list[num_chunks] != NULL) {
             hex2binary(haschunk_list[num_chunks], SHA1_HASH_LENGTH * 2, buf);
             insertHash(pkt, buf);
@@ -156,11 +159,11 @@ void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in* from) {
         insertHash(pkt, buf);
     }
 
-    if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)from, sizeof(*from)) > 0) {
+    if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, \
+        (struct sockaddr *)from, sizeof(*from)) > 0) {
         printf("Send IHAVE request success. %d\n", getPacketSize(pkt));
     } else {
         fprintf(stderr, "send packet failed\n");
     }
-
     free(pkt);
 }

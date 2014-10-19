@@ -29,7 +29,8 @@ void buildChunkList(chunklist *cklist) {
         }
 
         cklist->list[chunkCount].seq = hashindex;
-        hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, cklist->list[chunkCount].hash);
+        hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, \
+            cklist->list[chunkCount].hash);
         chunkCount++;
     }
 
@@ -45,15 +46,18 @@ char **retrieve_chunk_list(Packet *incomingPacket) {
     char **chunk_list;
     int num_chunks, head;
 
-    chunk_list = (char **) malloc(getHashCount(incomingPacket) * sizeof(char *));
+    chunk_list = (char **) malloc(getHashCount(incomingPacket) * \
+        sizeof(char *));
     memset(chunk_list, 0, getHashCount(incomingPacket) * sizeof(char *));
 
-    for (num_chunks = 0; num_chunks < getHashCount(incomingPacket); num_chunks++) {
+    for (num_chunks = 0; num_chunks < getHashCount(incomingPacket); \
+        num_chunks++) {
         chunk_list[num_chunks] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
         head = num_chunks * SHA1_HASH_LENGTH;
         uint8_t buf[SHA1_HASH_LENGTH];
 
-        strncpy((char*)buf, (const char*)incomingPacket->serial + HASH_OFFSET + head, SHA1_HASH_LENGTH);
+        strncpy((char*)buf, (const char*)incomingPacket->serial + \
+            HASH_OFFSET + head, SHA1_HASH_LENGTH);
 
         binary2hex(buf, SHA1_HASH_LENGTH, chunk_list[num_chunks]);
     }

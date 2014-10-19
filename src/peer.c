@@ -69,8 +69,8 @@ void process_inbound_udp(int sock, bt_config_t *config) {
     char **haschunk_list;
 
     fromlen = sizeof(from);
-    spiffy_recvfrom(sock, (void*)&(incomingPacket.serial), 1500, 0, (struct sockaddr *) &from, &fromlen);
-//    recvfrom(sock, &incomingPacket, sizeof(incomingPacket), 0, (struct sockaddr *) &from, &fromlen
+    spiffy_recvfrom(sock, (void*)&(incomingPacket.serial), 1500, 0, \
+        (struct sockaddr *) &from, &fromlen);
     printf("%s", incomingPacket.serial);
     // check node
     for (curPeer = config->peers; curPeer != NULL; curPeer = curPeer->next)
@@ -85,7 +85,8 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             chunk_list = retrieve_chunk_list(&incomingPacket);
             haschunk_list = has_chunks(config, &incomingPacket, chunk_list);
             if (haschunk_list[0] != NULL) {
-                IHaveRequest(haschunk_list, getHashCount(&incomingPacket), &from);
+                IHaveRequest(haschunk_list, getHashCount(&incomingPacket), \
+                    &from);
             }
             free_chunks(chunk_list, getHashCount(&incomingPacket));
             free_chunks(haschunk_list, getHashCount(&incomingPacket));
@@ -109,7 +110,7 @@ void allocate_peer_chunks(char **chunk_list, int size) {
     peers[nodeInMap] = (linkNode *) malloc(sizeof(linkNode));
     curNode = peers[nodeInMap];
     for (i = 0; i < size; i++) {
-        strncpy(curNode->chunkHash, chunk_list[i], BT_CHUNK_HASH_SIZE + 1);
+        strncpy(curNode->chunkHash, chunk_list[i], SHA1_HASH_LENGTH + 1);
         if (i + 1 < size) {
             curNode->next = (linkNode *) malloc(sizeof(linkNode));
             curNode = curNode->next;
@@ -117,6 +118,7 @@ void allocate_peer_chunks(char **chunk_list, int size) {
     }
 }
 
+// send out whohas request
 void process_get(char *chunkfile, char *outputfile) {
 
     chunklist requestList;
@@ -142,7 +144,7 @@ void process_get(char *chunkfile, char *outputfile) {
         return;
     }
 
-    printf("Chunk file parsed successfully and the parse result is as below\n");
+    printf("Chunk file parsed successfully, the parse result is as below\n");
 
     int i;
     for (i = 0; i < requestList.chunkNum; i++) {

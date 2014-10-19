@@ -1,0 +1,1 @@
+Every time WHOHAS is received, we do mapping which opens the has chunks file. This may lead to latency.

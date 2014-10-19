@@ -17,7 +17,7 @@ int make_chunks(FILE *fp, uint8_t **chunk_hashes) {
 	int numbytes = 0;
 
 	// read the bytes from the file and fill in the chunk_hashes
-	while((numbytes = fread(buffer, sizeof(uint8_t), BT_CHUNK_SIZE, fp)) > 0 ) {
+	while((numbytes = fread(buffer, sizeof(uint8_t), BT_CHUNK_SIZE, fp)) > 0) {
 		shahash(buffer, numbytes, chunk_hashes[numchunks++]);
 	}
 

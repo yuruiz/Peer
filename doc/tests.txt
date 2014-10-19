@@ -1,0 +1,2 @@
+simple run the example in writeup between two nodes.
+use more than two images to make chunks, allocation of chunks for every node varies. 
