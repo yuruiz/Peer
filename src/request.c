@@ -146,7 +146,7 @@ void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in* from) {
     printf("Response payload has: \n");
     for (num_chunks = 0; num_chunks < size; num_chunks++) {
         uint8_t buf[SHA1_HASH_LENGTH];
-        memset(buf, 0, SHA1_HASH_LENGTH);
+      //  memset(buf, 0, SHA1_HASH_LENGTH);
         if (haschunk_list[num_chunks] != NULL) {
             hex2binary(haschunk_list[num_chunks], SHA1_HASH_LENGTH * 2, buf);
             insertHash(pkt, buf);
