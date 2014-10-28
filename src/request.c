@@ -167,3 +167,84 @@ void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in* from) {
     }
     free(pkt);
 }
+
+// send GET message, allow concurrent download.
+void GetRequest(int sock, struct sockaddr_in* from)
+{
+    packet *p;
+    int index;
+
+    // check if the target chunkHash has been transferred
+    while ((index = list_contains(peers[nodeInMap]->chunkHash)) < 0)
+    {
+        if (peers[nodeInMap]->next == NULL )
+        {
+            if (list_empty() == EXIT_SUCCESS)
+            {
+                printf("JOB is done\n");
+            }
+            return;
+        }
+
+        linkNode *temp = peers[nodeInMap];
+        peers[nodeInMap] = peers[nodeInMap]->next;
+        free(temp);
+    }
+
+    if (peers[nodeInMap]->chunkHash == NULL )
+    {
+        printf("sending chunk equals zero\n");
+        return;
+    }
+
+    p = buildDefaultPacket();
+    setPakcetType(p, "GET");
+    incPacketSize(p, 4);
+    insertHash(p, peers[nodeInMap]->chunkHash);
+    spiffy_sendto(sock, p->serial, getPacketSize(p), 0, (struct sockaddr *) from,
+            sizeof(*from));
+
+    jobs[nodeInMap] = requestList.list[index].seq;
+
+    printf("Requesting chunk ID: %d from %d\n", jobs[nodeInMap], nodeInMap);
+
+//    nextExpected[nodeInMap] = 1;
+//    GETTTL[nodeInMap] = 0;
+    free(p);
+
+    // chunk is transferring, remove it so that
+    // other peers won't transfer this again
+    list_remove(requestList.list[index].hash);
+}
+
+// send requested data
+void sendData(struct sockaddr_in *from, bt_config_t *config)
+{
+    packet *p;
+    FILE *fp;
+    // don't know how to find the right file
+    if ((fp = fopen("example/C.tar", "rb")) == NULL )
+        return;
+
+    p = buildDefaultPacket();
+    setPakcetType(p, "DATA");
+    incPacketSize(p, 4);
+
+    // look for the correct position to read the data to packet
+    long int offset = CHUNK_SIZE * DATA_SIZE * jobs[nodeInMap]
+            + DATA_SIZE * (getSEQ(&p) - 1);
+    fseek(fp, offset, SEEK_SET);
+    uint8_t buf[DATA_SIZE];
+    fread(buf, 1, DATA_SIZE, fp);
+    insertHash(p, buf);
+    fclose(fp);
+
+    spiffy_sendto(getSock(), p->serial, getPacketSize(p), 0,
+            (struct sockaddr *) from, sizeof(*from));
+//    TTL[nodeInMap][p->sequence_num - 1] = 0;
+    dprintf(STDOUT_FILENO, "sending data: %d\n", getSEQ(&p));
+    free(p);
+}
+
+
+

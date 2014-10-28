@@ -25,9 +25,6 @@
 #include "request.h"
 #include "peer.h"
 
-short nodeInMap; // the node the packet received from
-linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
-
 void peer_run(bt_config_t *config);
 
 static bt_config_t *_config;
@@ -94,10 +91,27 @@ void process_inbound_udp(int sock, bt_config_t *config) {
         case 1:
             // receive IHAVE request
             dprintf(STDOUT_FILENO, "IHAVE received\n");
-//            chunk_list = retrieve_chunk_list(&incomingPacket);
-//            allocate_peer_chunks(chunk_list, getPacketSize(&incomingPacket));
-//            free_chunks(chunk_list, getPacketSize(&incomingPacket));
+            chunk_list = retrieve_chunk_list(&incomingPacket);
+            allocate_peer_chunks(chunk_list, getHashCount(&incomingPacket));
+            GetRequest(sock, &from);
+            free_chunks(chunk_list, getHashCount(&incomingPacket));
             break;
+        case 2:
+            // receive GET request
+            dprintf(STDOUT_FILENO, "GET received\n");
+            chunk_list = retrieve_chunk_list(&incomingPacket);
+            int index = list_contains(chunk_list[0]);
+            jobs[nodeInMap] = requestList.list[index].seq;
+            // send window
+            windowSize[nodeInMap] = 1;
+            sendData(from, config);
+            free_chunks(chunk_list, getHashCount(&incomingPacket));
+            break;
+        case 4:
+            dprintf(STDOUT_FILENO, "ACK received %d\n", getACK(&incomingPacket));
+            sendData(from, config);
+            break;
+
     }
 
 }
@@ -110,7 +124,7 @@ void allocate_peer_chunks(char **chunk_list, int size) {
     peers[nodeInMap] = (linkNode *) malloc(sizeof(linkNode));
     curNode = peers[nodeInMap];
     for (i = 0; i < size; i++) {
-        strncpy(curNode->chunkHash, chunk_list[i], SHA1_HASH_LENGTH + 1);
+        strncpy(curNode->chunkHash, chunk_list[i], 2 * SHA1_HASH_LENGTH + 1);
         if (i + 1 < size) {
             curNode->next = (linkNode *) malloc(sizeof(linkNode));
             curNode = curNode->next;
@@ -120,8 +134,6 @@ void allocate_peer_chunks(char **chunk_list, int size) {
 
 // send out whohas request
 void process_get(char *chunkfile, char *outputfile) {
-
-    chunklist requestList;
     requestList.type = GET;
     printf("Processing GET request %s, %s\n", chunkfile, outputfile);
 

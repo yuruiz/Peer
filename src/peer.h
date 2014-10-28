@@ -2,14 +2,19 @@
 #define _PEER_H_
 
 #include "bt_parse.h"
-
-#define HASH_LENGTH 20
+#include "request.h"
 
 typedef struct ln
 {
-    char chunkHash[HASH_LENGTH + 1];
+    char chunkHash[2 * SHA1_HASH_LENGTH + 1];
     struct ln *next;
 } linkNode;
+
+short nodeInMap; // the node the packet received from
+linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
+chunklist requestList;
+short jobs[BT_MAX_PEERS]; // current job running on each peer.
+int windowSize[BT_MAX_PEERS];
 
 void free_chunks(char **chunks, int size);
 int getSock();
