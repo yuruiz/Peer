@@ -19,6 +19,8 @@
 #define HASH_OFFSET 20
 #define MAX_CHUNK_NUM 1000
 #define SHA1_HASH_LENGTH 20
+#define CHUNK_SIZE 512
+#define DATA_SIZE 1024
 
 typedef struct _packet{
     struct sockaddr_in src;
@@ -49,5 +51,7 @@ uint8_t getHashCount(Packet *pkt);
 void insertHash(Packet *pkt, uint8_t *hash);
 void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in *from);
 void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, int peerID);
+void GetRequest(int sock, struct sockaddr_in* from);
+
 
 #endif

@@ -254,3 +254,51 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
 
     return;
 }
+// send GET message, allow concurrent download.
+void GetRequest(int sock, struct sockaddr_in* from)
+{
+    Packet *p;
+    int index;
+
+    // check if the target chunkHash has been transferred
+    while ((index = list_contains(peers[nodeInMap]->chunkHash)) < 0)
+    {
+        if (peers[nodeInMap]->next == NULL )
+        {
+            if (list_empty() == EXIT_SUCCESS)
+            {
+                printf("JOB is done\n");
+            }
+            return;
+        }
+
+        linkNode *temp = peers[nodeInMap];
+        peers[nodeInMap] = peers[nodeInMap]->next;
+        free(temp);
+    }
+
+    if (peers[nodeInMap]->chunkHash == NULL )
+    {
+        printf("sending chunk equals zero\n");
+        return;
+    }
+
+    p = buildDefaultPacket();
+    setPakcetType(p, "GET");
+    incPacketSize(p, 4);
+    insertHash(p, peers[nodeInMap]->chunkHash);
+    spiffy_sendto(sock, p->serial, getPacketSize(p), 0, (struct sockaddr *) from,
+            sizeof(*from));
+
+    jobs[nodeInMap] = requestList.list[index].seq;
+
+    printf("Requesting chunk ID: %d from %d\n", jobs[nodeInMap], nodeInMap);
+
+//    nextExpected[nodeInMap] = 1;
+//    GETTTL[nodeInMap] = 0;
+    free(p);
+
+    // chunk is transferring, remove it so that
+    // other peers won't transfer this again
+    list_remove(requestList.list[index].hash);
+}

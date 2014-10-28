@@ -1,8 +1,47 @@
 #include "chunklist.h"
 #include "request.h"
 #include "input_buffer.h"
+#include "peer.h"
 
 #define LINESIZE 8096
+
+// check current chunk hash is requested.
+int list_contains(char *chunkHash)
+{
+    int i;
+    for (i = 0; i < requestList.chunkNum; i++)
+    {
+        if (requestList.list[i] == NULL )
+            continue;
+        else if (strcmp(requestList.list[i], chunkHash) == 0)
+            return i;
+    }
+    return -1;
+}
+
+int list_empty()
+{
+    int i;
+    for (i = 0; i < requestList.chunkNum; i++)
+        if (requestList.list[i] != NULL )
+            return EXIT_FAILURE;
+    return EXIT_SUCCESS;
+}
+
+void list_remove(char *chunkHash)
+{
+    int i;
+    for (i = 0; i < requestList.chunkNum; i++)
+    {
+        if (requestList.list[i] == NULL )
+            continue;
+        else if (strcmp(requestList.list[i], chunkHash) == 0)
+        {
+            requestList.list[i] = NULL;
+            return;
+        }
+    }
+}
 
 void buildChunkList(chunklist *cklist) {
 

@@ -96,9 +96,10 @@ void process_inbound_udp(int sock, bt_config_t *config) {
         case 1:
             /*receive IHAVE request*/
             dprintf(STDOUT_FILENO, "IHAVE received\n");
-//            chunk_list = retrieve_chunk_list(&incomingPacket);
-//            allocate_peer_chunks(chunk_list, getPacketSize(&incomingPacket));
-//            free_chunks(chunk_list, getPacketSize(&incomingPacket));
+            chunk_list = retrieve_chunk_list(&incomingPacket);
+            allocate_peer_chunks(chunk_list, getHashCount(&incomingPacket));
+            GetRequest(sock, &incomingPacket.src);
+            free_chunks(chunk_list, getHashCount(&incomingPacket));
             break;
         case 2:
             /*receive GET request*/
@@ -165,7 +166,7 @@ void allocate_peer_chunks(char **chunk_list, int size) {
     peers[nodeInMap] = (linkNode *) malloc(sizeof(linkNode));
     curNode = peers[nodeInMap];
     for (i = 0; i < size; i++) {
-        strncpy(curNode->chunkHash, chunk_list[i], SHA1_HASH_LENGTH + 1);
+        strncpy(curNode->chunkHash, chunk_list[i], 2 * SHA1_HASH_LENGTH + 1);
         if (i + 1 < size) {
             curNode->next = (linkNode *) malloc(sizeof(linkNode));
             curNode = curNode->next;
@@ -175,8 +176,6 @@ void allocate_peer_chunks(char **chunk_list, int size) {
 
 // send out whohas request
 void process_get(char *chunkfile, char *outputfile) {
-
-    chunklist requestList;
     requestList.type = GET;
     printf("Processing GET request %s, %s\n", chunkfile, outputfile);
 
