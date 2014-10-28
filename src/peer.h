@@ -15,11 +15,10 @@ typedef struct ln
     struct ln *next;
 } linkNode;
 
-short nodeInMap; // the node the packet received from
-linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
-chunklist requestList;
-short jobs[BT_MAX_PEERS]; // current job running on each peer.
-int windowSize[BT_MAX_PEERS];
+//short nodeInMap; // the node the packet received from
+//linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
+//short jobs[BT_MAX_PEERS]; // current job running on each peer.
+//int windowSize[BT_MAX_PEERS];
 
 void free_chunks(char **chunks, int size);
 int getSock();

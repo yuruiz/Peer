@@ -26,7 +26,8 @@
 #include "queue.h"
 
 short nodeInMap; // the node the packet received from
-linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
+//linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
+chunklist requestList;
 
 static bt_config_t *_config;
 static int _sock;
@@ -97,7 +98,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             /*receive IHAVE request*/
             dprintf(STDOUT_FILENO, "IHAVE received\n");
             chunk_list = retrieve_chunk_list(&incomingPacket);
-            allocate_peer_chunks(chunk_list, getHashCount(&incomingPacket));
+            buildDownNode(nodeInMap, chunk_list, getHashCount(&incomingPacket));
             GetRequest(sock, &incomingPacket.src);
             free_chunks(chunk_list, getHashCount(&incomingPacket));
             break;
@@ -112,13 +113,8 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             numConn++;
 
             if ((upNode = getUpNode(nodeInMap)) == NULL) {
-                upNode = malloc(sizeof(conn_peer));
-                upNode->peerID = nodeInMap;
-                upNode->connected = 1;
-                upNode->next = NULL;
-                upNode->windowSize = WIN_SIZE;
 
-                insertNewupNode(upNode);
+                break;
             }
 
             Packet *pkt = malloc(sizeof(Packet));
@@ -156,22 +152,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
     }
 
-}
-
-// turn array of chunk list into linked list for sending get message to every node.
-void allocate_peer_chunks(char **chunk_list, int size) {
-    linkNode *curNode;
-    int i;
-
-    peers[nodeInMap] = (linkNode *) malloc(sizeof(linkNode));
-    curNode = peers[nodeInMap];
-    for (i = 0; i < size; i++) {
-        strncpy(curNode->chunkHash, chunk_list[i], 2 * SHA1_HASH_LENGTH + 1);
-        if (i + 1 < size) {
-            curNode->next = (linkNode *) malloc(sizeof(linkNode));
-            curNode = curNode->next;
-        }
-    }
 }
 
 // send out whohas request

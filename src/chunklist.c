@@ -6,38 +6,35 @@
 #define LINESIZE 8096
 
 // check current chunk hash is requested.
-int list_contains(char *chunkHash)
+int list_contains(char *chunkHash, chunklist* requestList)
 {
     int i;
-    for (i = 0; i < requestList.chunkNum; i++)
+    for (i = 0; i < requestList->chunkNum; i++)
     {
-        if (requestList.list[i] == NULL )
-            continue;
-        else if (strcmp(requestList.list[i], chunkHash) == 0)
+        if (strcmp(requestList->list[i].hash, chunkHash) == 0)
             return i;
     }
     return -1;
 }
 
-int list_empty()
+int list_empty(chunklist* requestList)
 {
     int i;
-    for (i = 0; i < requestList.chunkNum; i++)
-        if (requestList.list[i] != NULL )
+    for (i = 0; i < requestList->chunkNum; i++)
+        if (requestList->list[i] != NULL )
             return EXIT_FAILURE;
     return EXIT_SUCCESS;
 }
 
-void list_remove(char *chunkHash)
+void list_remove(char *chunkHash, chunklist* requestList)
 {
     int i;
-    for (i = 0; i < requestList.chunkNum; i++)
+    for (i = 0; i < requestList->chunkNum; i++)
     {
-        if (requestList.list[i] == NULL )
-            continue;
-        else if (strcmp(requestList.list[i], chunkHash) == 0)
+
+        if (strcmp(requestList->list[i].hash, chunkHash) == 0)
         {
-            requestList.list[i] = NULL;
+            requestList->list[i] = NULL;
             return;
         }
     }
