@@ -4,10 +4,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <CoreGraphics/CoreGraphics.h>
 #include "peer.h"
 #include "chunklist.h"
 #include "request.h"
 #include "spiffy.h"
+#include "chunk.h"
+#include "queue.h"
 
 
 /*Right now Packet only have the default header, the length now is 16*/
@@ -51,9 +54,9 @@ void setPakcetType(Packet *pkt, char *type) {
 
 }
 
-uint8_t getPacketType(Packet *pkt){
+uint8_t getPacketType(Packet *pkt) {
     uint8_t *ptr = (pkt->serial);
-    return *((uint8_t *)(ptr + TYPE_OFFSET));
+    return *((uint8_t *) (ptr + TYPE_OFFSET));
 }
 
 void incPacketSize(Packet *pkt, uint8_t size) {
@@ -70,10 +73,22 @@ uint16_t getPacketSize(Packet *pkt) {
     return ntohs(*((uint16_t *) (serial + PKLEN_OFFET)));
 }
 
-uint8_t getHashCount(Packet *pkt){
+uint8_t getHashCount(Packet *pkt) {
     uint8_t *serial = pkt->serial;
 
     return *(serial + HASHNUM_OFFSET);
+}
+
+uint8_t *getDataHash(Packet *pkt) {
+    return pkt->serial + HASHNUM_OFFSET;
+}
+
+
+
+void setPacketSeq(Packet *pkt, int seq){
+    uint8_t *serial = pkt->serial;
+
+    *((uint32_t *)(serial + SEQNUM_OFFSET)) = htonl(seq);
 }
 
 void insertHash(Packet *pkt, uint8_t *hash) {
@@ -89,7 +104,52 @@ void insertHash(Packet *pkt, uint8_t *hash) {
     *(serial + HASHNUM_OFFSET) = curHashCount + 1;
 
     incPacketSize(pkt, SHA1_HASH_LENGTH);
+}
 
+
+int getHashIndex(uint8_t *hash, chunklist *hasChunklist) {
+    int i;
+    for (i = 0; i < hasChunklist->chunkNum; ++i) {
+        chunkline *hashline = &(hasChunklist->list[i]);
+        if (strncmp((char*)hash, (char*)(hashline->hash), SHA1_HASH_LENGTH) == 0) {
+            //todo fetch state
+            return hasChunklist->list[i].seq;
+        }
+    }
+
+    return -1;
+}
+
+
+Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config){
+    Packet* newPacket = buildDefaultPacket();
+    setPakcetType(newPacket, "DATA");
+    incPacketSize(newPacket, size);
+    setPacketSeq(newPacket, seq);
+
+    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * PACKET_DATA_SIZE;
+
+    char* masterfile = config->chunk_file;
+
+    FILE *mastfptr;
+
+    if ((mastfptr = fopen(masterfile, "r")) == NULL) {
+        fprintf(stderr, "Open file %s failed\n", masterfile);
+        return NULL;
+    }
+
+    rewind(mastfptr);
+    fseek(mastfptr, fileoffset, SEEK_SET);
+
+    if(fread(newPacket->serial + DATA_OFFSET, sizeof(uint8_t), size, mastfptr) != size) {
+        fprintf(stderr, "Reading master chunk file error\n");
+        fclose(mastfptr);
+        return NULL;
+    }
+
+    fclose(mastfptr);
+
+    return newPacket;
 
 }
 
@@ -126,8 +186,7 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
             if (p->id != config->identity) {
                 if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), \
                     0, (struct sockaddr *) &(p->addr), sizeof(p->addr)) > 0) {
-                    printf("Send whohas request to %d success. %d\n", p->id, \
-                        getPacketSize(pkt));
+                    printf("Send whohas request to %d success. %d\n", p->id, getPacketSize(pkt));
                 } else {
                     fprintf(stderr, "send packet failed\n");
                 }
@@ -140,7 +199,7 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
 }
 
 // send back IHAVE message.
-void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in* from) {
+void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in *from) {
 
     int num_chunks;
 
@@ -159,11 +218,39 @@ void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in* from) {
         insertHash(pkt, buf);
     }
 
-    if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, \
-        (struct sockaddr *)from, sizeof(*from)) > 0) {
+    if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
         printf("Send IHAVE request success. %d\n", getPacketSize(pkt));
     } else {
         fprintf(stderr, "send packet failed\n");
     }
     free(pkt);
+}
+
+void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, int peerID) {
+    uint8_t *data_hash = getDataHash(request);
+    int hashIndex;
+
+    if ((hashIndex = getHashIndex(data_hash, haschunklist)) < 0) {
+        printf("Do not have the data chunk to respond to the DATA requtest\n");
+        return;
+    }
+
+    int numPacket = (BT_CHUNK_SIZE + PACKET_DATA_SIZE - 1) / PACKET_DATA_SIZE;
+
+    int i;
+
+    for (i = 0; i < numPacket; ++i) {
+        Packet *newPacket;
+        if (i == numPacket - 1) {
+            newPacket = buildDataPacket(i + 1, hashIndex, BT_CHUNK_SIZE % PACKET_DATA_SIZE, config);
+        }
+        else{
+            newPacket = buildDataPacket(i + 1, hashIndex, PACKET_DATA_SIZE, config);
+        }
+
+        enDataQueue(newPacket, peerID);
+    }
+
+
+    return;
 }

@@ -11,8 +11,6 @@
 
 #include <sys/types.h>
 #include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,14 +22,17 @@
 #include "chunk.h"
 #include "request.h"
 #include "peer.h"
+#include "conn.h"
+#include "queue.h"
 
 short nodeInMap; // the node the packet received from
 linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
 
-void peer_run(bt_config_t *config);
-
 static bt_config_t *_config;
 static int _sock;
+static chunklist haschunklist;
+
+void peer_run(bt_config_t *config);
 
 int main(int argc, char **argv) {
     bt_config_t config;
@@ -59,26 +60,27 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-
 void process_inbound_udp(int sock, bt_config_t *config) {
-    struct sockaddr_in from;
     socklen_t fromlen;
     Packet incomingPacket;
     bt_peer_t *curPeer;
     char **chunk_list;
     char **haschunk_list;
+    static int numConn = 0;
 
-    fromlen = sizeof(from);
-    spiffy_recvfrom(sock, (void*)&(incomingPacket.serial), 1500, 0, \
-        (struct sockaddr *) &from, &fromlen);
-    printf("%s", incomingPacket.serial);
-    // check node
+    fromlen = sizeof(incomingPacket.src);
+    memset(incomingPacket.serial, 0, PACK_SIZE);
+    spiffy_recvfrom(sock, (void *) &(incomingPacket.serial), PACK_SIZE, 0, \
+        (struct sockaddr *) &incomingPacket.src, &fromlen);
+
+    /*check node*/
     for (curPeer = config->peers; curPeer != NULL; curPeer = curPeer->next)
-        if (strcmp(inet_ntoa(curPeer->addr.sin_addr), inet_ntoa(from.sin_addr))
-                == 0 && ntohs(curPeer->addr.sin_port) == ntohs(from.sin_port))
+        if (strcmp(inet_ntoa(curPeer->addr.sin_addr), inet_ntoa(incomingPacket.src.sin_addr))
+                == 0 && ntohs(curPeer->addr.sin_port) == ntohs(incomingPacket.src.sin_port))
             nodeInMap = curPeer->id;
 
     switch (getPacketType(&incomingPacket)) {
+        conn_peer* upNode;
         case 0:
             // receive WHOHAS request
             dprintf(STDOUT_FILENO, "WHOHAS received\n");
@@ -86,17 +88,70 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             haschunk_list = has_chunks(config, &incomingPacket, chunk_list);
             if (haschunk_list[0] != NULL) {
                 IHaveRequest(haschunk_list, getHashCount(&incomingPacket), \
-                    &from);
+                    &incomingPacket.src);
             }
             free_chunks(chunk_list, getHashCount(&incomingPacket));
             free_chunks(haschunk_list, getHashCount(&incomingPacket));
             break;
         case 1:
-            // receive IHAVE request
+            /*receive IHAVE request*/
             dprintf(STDOUT_FILENO, "IHAVE received\n");
 //            chunk_list = retrieve_chunk_list(&incomingPacket);
 //            allocate_peer_chunks(chunk_list, getPacketSize(&incomingPacket));
 //            free_chunks(chunk_list, getPacketSize(&incomingPacket));
+            break;
+        case 2:
+            /*receive GET request*/
+            dprintf(STDOUT_FILENO, "GET received\n");
+            if (numConn >= MAX_CONN) {
+                dprintf(STDOUT_FILENO, "too much connection\n");
+                break;
+            }
+
+            numConn++;
+
+            if ((upNode = getUpNode(nodeInMap)) == NULL) {
+                upNode = malloc(sizeof(conn_peer));
+                upNode->peerID = nodeInMap;
+                upNode->connected = 1;
+                upNode->next = NULL;
+                upNode->windowSize = WIN_SIZE;
+
+                insertNewupNode(upNode);
+            }
+
+            Packet *pkt = malloc(sizeof(Packet));
+            memcpy(pkt, &incomingPacket, sizeof(Packet));
+
+            /*Build data packet and add packet to corresponding data packet queue*/
+            DataRequest(config, pkt, &haschunklist, nodeInMap);
+
+            /*flush data packet queue*/
+            flashDataQueue(nodeInMap, upNode);
+
+            break;
+        case 3:
+            /*receive DATA request*/
+            dprintf(STDOUT_FILENO, "DATA received\n");
+            break;
+        case 4:
+            /*receive ACK request*/
+
+            if ((upNode = getUpNode(nodeInMap)) == NULL) {
+                printf("Received unknow ack\n");
+                break;
+            }
+
+            if(upNode->windowSize < 8){
+                upNode->windowSize++;
+            }
+
+            flashDataQueue(nodeInMap, upNode);
+            break;
+        case 5:
+            break;
+        default:
+            dprintf(STDOUT_FILENO, "Receive a packet of unknow type!!\n");
             break;
     }
 
@@ -200,6 +255,15 @@ void peer_run(bt_config_t *config) {
     }
 
     spiffy_init(config->identity, (struct sockaddr *) &myaddr, sizeof(myaddr));
+
+
+    if ((haschunklist.chunkfptr = fopen(config->has_chunk_file, "r")) == NULL) {
+        fprintf(stderr, "Open file %s failed\n", config->has_chunk_file);
+        return;
+    }
+
+    buildChunkList(&haschunklist);
+    fclose(haschunklist.chunkfptr);
 
     while (1) {
         int nfds;
