@@ -28,6 +28,7 @@
 short nodeInMap; // the node the packet received from
 //linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
 chunklist requestList;
+char **request_queue;
 
 static bt_config_t *_config;
 static int _sock;
@@ -64,6 +65,7 @@ int main(int argc, char **argv) {
 void process_inbound_udp(int sock, bt_config_t *config) {
     socklen_t fromlen;
     Packet incomingPacket;
+    Packet *p;
     bt_peer_t *curPeer;
     char **chunk_list;
     char **haschunk_list;
@@ -129,7 +131,14 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            dprintf(STDOUT_FILENO, "DATA received\n");
+            dprintf(STDOUT_FILENO, "DATA received %d from %d\n",
+            getSEG(&incomingPacket), nodeInMap);
+            p = buildDefaultPacket();
+            setPakcetType(p, "ACK");
+            incPacketSize(p, 16);
+            setPacketAcm(p, 1);
+            spiffy_sendto(sock, p->serial, getPacketSize(p), 0, (struct sockaddr *) from,
+            sizeof(*from));   
             break;
         case 4:
             /*receive ACK request*/
@@ -155,27 +164,28 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 }
 
 // send out whohas request
-void process_get(char *chunkfile, char *outputfile) {
+char **process_get(char *chunkfile, char *outputfile) {
     requestList.type = GET;
+    char **chunk_list;
     printf("Processing GET request %s, %s\n", chunkfile, outputfile);
 
     if ((requestList.chunkfptr = fopen(chunkfile, "r")) == NULL) {
         fprintf(stderr, "Open file %s failed\n", chunkfile);
-        return;
+        return NULL;
     }
 
     if ((requestList.ouptputfptr = fopen(outputfile, "w")) == NULL) {
         fprintf(stderr, "Open file %s failed\n", outputfile);
-        return;
+        return NULL;
     }
 
-    buildChunkList(&requestList);
+    chunk_list  = buildChunkList(&requestList);
 
     fclose(requestList.chunkfptr);
 
     if (requestList.chunkNum == 0) {
         printf("There is no chunk in the file\n");
-        return;
+        return NULL;
     }
 
     printf("Chunk file parsed successfully, the parse result is as below\n");
@@ -190,17 +200,24 @@ void process_get(char *chunkfile, char *outputfile) {
     }
 
     WhoHasRequest(&requestList, _config);
+    return chunk_list;
 }
 
 void handle_user_input(char *line, void *cbdata) {
     char chunkf[128], outf[128];
+    char **chunk_list;
 
     bzero(chunkf, sizeof(chunkf));
     bzero(outf, sizeof(outf));
 
     if (sscanf(line, "GET %120s %120s", chunkf, outf)) {
         if (strlen(outf) > 0) {
-            process_get(chunkf, outf);
+            if ((chunk_list = process_get(chunkf, outf)) == NULL )
+            {
+                perror("I/O error");
+                exit(-1);
+            }
+            request_queue = chunk_list;
         }
     }
 }

@@ -6,54 +6,63 @@
 #define LINESIZE 8096
 
 // check current chunk hash is requested.
-int list_contains(char *chunkHash, chunklist* requestList)
+int list_contains(char *chunkHash)
 {
     int i;
-    for (i = 0; i < requestList->chunkNum; i++)
+    for (i = 0; i < MAX_CHUNK_NUM; i++)
     {
-        if (strcmp(requestList->list[i].hash, chunkHash) == 0)
+        if (request_queue[i] == NULL )
+            continue;
+        else if (strcmp(request_queue[i], chunkHash) == 0)
             return i;
     }
     return -1;
 }
 
-int list_empty(chunklist* requestList)
+int list_empty()
 {
     int i;
-    for (i = 0; i < requestList->chunkNum; i++)
-        if (requestList->list[i] != NULL )
+    for (i = 0; i < MAX_CHUNK_NUM; i++)
+    {
+        if (request_queue[i] != NULL )
             return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
 
-void list_remove(char *chunkHash, chunklist* requestList)
+void list_remove(char *chunkHash)
 {
     int i;
-    for (i = 0; i < requestList->chunkNum; i++)
+    for (i = 0; i < MAX_CHUNK_NUM; i++)
     {
 
-        if (strcmp(requestList->list[i].hash, chunkHash) == 0)
+        if (request_queue[i] == NULL )
+            continue;
+        else if (strcmp(request_queue[i], chunkHash) == 0)
         {
-            requestList->list[i] = NULL;
+            request_queue[i] = NULL;
             return;
         }
     }
 }
 
-void buildChunkList(chunklist *cklist) {
+char **buildChunkList(chunklist *cklist) {
 
     char linebuf[LINESIZE];
     int chunkCount = 0;
+    char **chunk_list;
 
+    chunk_list = (char **) malloc(MAX_CHUNK_NUM * sizeof(char *));
     if (cklist->chunkfptr == NULL) {
         fprintf(stderr, "chunkfptr is null!\n");
-        return;
+        return NULL;
     }
 
     while (!feof(cklist->chunkfptr)) {
         char hashbuf[LINESIZE];
         int hashindex;
 
+        chunk_list[chunkCount] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
         memset(hashbuf, 0, LINESIZE);
         if (fgets(linebuf, LINESIZE, cklist->chunkfptr) == NULL) {
             break;
@@ -67,12 +76,16 @@ void buildChunkList(chunklist *cklist) {
         cklist->list[chunkCount].seq = hashindex;
         hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, \
             cklist->list[chunkCount].hash);
+        hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, \
+            chunk_list[chunkCount]);
         chunkCount++;
     }
-
+    int i = chunkCount;
+    while (i < MAX_CHUNK_NUM)
+        chunk_list[i++] = NULL;
     cklist->chunkNum = chunkCount;
 
-    return;
+    return chunk_list;
 
 }
 

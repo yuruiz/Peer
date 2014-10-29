@@ -300,5 +300,5 @@ void GetRequest(int sock, struct sockaddr_in* from)
 
     // chunk is transferring, remove it so that
     // other peers won't transfer this again
-    list_remove(requestList.list[index].hash);
+    list_remove(request_queue[index]);
 }
