@@ -133,6 +133,9 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             /*receive DATA request*/
             dprintf(STDOUT_FILENO, "DATA received %d from %d\n", getPacketSeq(&incomingPacket), nodeInMap);
             ACKrequest(&incomingPacket.src);
+
+            /*flush data packet queue*/
+            flashDataQueue(nodeInMap, upNode);
             break;
         case 4:
             /*receive ACK request*/

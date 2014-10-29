@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <Python/Python.h>
 #include "peer.h"
 #include "conn.h"
 #include "request.h"
@@ -73,26 +74,30 @@ void insertDownNode(conn_peer *newNode){
 
 conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     conn_peer *DownNode = (conn_peer *) malloc(sizeof(conn_peer));
-    linkNode *curNode = (linkNode *) malloc(sizeof(linkNode));
     DownNode->peerID = nodeID;
     DownNode->windowSize = 0;
     DownNode->prev = NULL;
     DownNode->next = NULL;
-    DownNode->hashhead = curNode;
-    strncpy(curNode->chunkHash, chunk_list[0], 2 * SHA1_HASH_LENGTH + 1);
-    printf("%s\n", chunk_list[0]);
+    DownNode->hashhead = NULL;
 
     int i;
-    for (i = 1; i < size; i++) {
+    linkNode* curNode;
+    for (i = 0; i < size; i++) {
         linkNode *temp = (linkNode *) malloc(sizeof(linkNode));
-        curNode->next = temp;
-        curNode = temp;
+        if (DownNode->hashhead == NULL) {
+            DownNode->hashhead = temp;
+            curNode = DownNode->hashhead;
+        }
+        else {
+            if (strncmp(curNode->chunkHash, chunk_list[i], 2 * SHA1_HASH_LENGTH + 1) == 0) {
+                free(temp);
+                continue;
+            }
+            curNode->next = temp;
+            curNode = temp;
+        }
         strncpy(curNode->chunkHash, chunk_list[i], 2 * SHA1_HASH_LENGTH + 1);
         printf("%s\n", chunk_list[i]);
-        if (i + 1 < size) {
-            curNode->next = (linkNode *) malloc(sizeof(linkNode));
-            curNode = curNode->next;
-        }
     }
 
     insertDownNode(DownNode);

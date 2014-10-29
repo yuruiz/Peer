@@ -14,8 +14,10 @@ int list_contains(char *chunkHash)
     {
         if (request_queue[i] == NULL )
             continue;
-        else if (strcmp(request_queue[i], chunkHash) == 0)
+        else if (strcmp(request_queue[i], chunkHash) == 0){
             return i;
+        }
+
     }
     return -1;
 }
@@ -54,6 +56,7 @@ char **buildChunkList(chunklist *cklist) {
     char **chunk_list;
 
     chunk_list = (char **) malloc(MAX_CHUNK_NUM * sizeof(char *));
+    memset(chunk_list, 0, MAX_HASH_NUM* sizeof(char*));
     if (cklist->chunkfptr == NULL) {
         fprintf(stderr, "chunkfptr is null!\n");
         return NULL;
@@ -75,10 +78,8 @@ char **buildChunkList(chunklist *cklist) {
         }
 
         cklist->list[chunkCount].seq = hashindex;
-        hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, \
-            cklist->list[chunkCount].hash);
-        hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, \
-            chunk_list[chunkCount]);
+        hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, cklist->list[chunkCount].hash);
+        strncpy(chunk_list[chunkCount], hashbuf, 2* SHA1_HASH_LENGTH);
         chunkCount++;
     }
     int i = chunkCount;
