@@ -174,3 +174,32 @@ void bt_dump_config(bt_config_t *config) {
     for (p = config->peers; p; p = p->next)
         printf("  peer %d: %s:%d\n", p->id, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port));
 }
+
+
+int parseMasterDatafile(bt_config_t *config) {
+    char linebuf[BT_FILENAME_LEN];
+    FILE *chunk_file = fopen(config->chunk_file, "r");
+
+    if (chunk_file == NULL) {
+        printf("open chunk file %s failed\n", config->chunk_file);
+        return -1;
+    }
+
+    memset(linebuf, 0, BT_FILENAME_LEN* sizeof(char));
+    if (fgets(linebuf, BT_FILENAME_LEN, chunk_file) == NULL) {
+        printf("read chunk file %s failed\n", config->chunk_file);
+        fclose(chunk_file);
+        return -1;
+    }
+
+    if (sscanf(linebuf, "File: %s", config->master_data_file) != 1) {
+        printf("parse chunk file %s failed\n", config->chunk_file);
+        fclose(chunk_file);
+        return -1;
+    }
+
+    printf("parse chunk file successed, %s\n", config->master_data_file);
+    fclose(chunk_file);
+
+    return 0;
+}

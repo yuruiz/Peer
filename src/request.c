@@ -355,7 +355,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     list_remove(request_queue[index]);
 }
 
-// ACK packet
+
 void ACKrequest(struct sockaddr_in *from int seq){
 
     Packet* pkt = buildDefaultPacket();
