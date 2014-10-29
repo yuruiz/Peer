@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -166,7 +165,7 @@ Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config){
 
     long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * DATA_SIZE;
 
-    char* masterfile = config->chunk_file;
+    char* masterfile = config->master_data_file;
 
     FILE *mastfptr;
 
@@ -309,13 +308,14 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     }
     // check if the target chunkHash has been transferred
     while ((index = list_contains(hashNode->chunkHash)) < 0) {
-        printf("inside\n");
+        printf("inside1\n");
         if (hashNode->next == NULL) {
             if (list_empty() == EXIT_SUCCESS) {
                 printf("JOB is done\n");
             }
             return;
         }
+        printf("inside2\n");
 
         linkNode *temp = hashNode;
         hashNode = hashNode->next;
@@ -332,10 +332,10 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     p = buildDefaultPacket();
     setPakcetType(p, "GET");
 
-    char hashbuf[SHA1_HASH_LENGTH];
+    uint8_t hashbuf[SHA1_HASH_LENGTH];
     hex2binary(hashNode->chunkHash, SHA1_HASH_LENGTH * 2, hashbuf);
 
-    insertGetHash(p, (uint8_t*)hashbuf);
+    insertGetHash(p, hashbuf);
     if (spiffy_sendto(getSock(), p->serial, getPacketSize(p), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
         printf("Send GET request success. %d\n", getPacketSize(p));
     } else {

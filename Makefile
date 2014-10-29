@@ -23,10 +23,10 @@ run: peer_run
 	./peer_run
 
 run_client:
-	./peer -p nodes.map -c example/A.haschunks -f example/C.tar -m 4 -i 1 -d 0
+	./peer -p nodes.map -c example/A.haschunks -f example/C.chunks -m 4 -i 1 -d 0
 
 run_server:
-	./peer -p nodes.map -c example/B.haschunks -f example/C.tar -m 4 -i 2 -d 0
+	./peer -p nodes.map -c example/B.haschunks -f example/C.chunks -m 4 -i 2 -d 0
 
 spiffy:
 	./hupsim.pl -m topo.map -n nodes.map -p 12345 -v 0 &

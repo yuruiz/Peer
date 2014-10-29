@@ -26,7 +26,7 @@ typedef struct ln
 
 void free_chunks(char **chunks, int size);
 int getSock();
-void processData(Packet *incomingPacket);
+void processData(Packet *incomingPacket, int peerID);
 void peer_init();
 
 #endif /* _PEER_H_ */

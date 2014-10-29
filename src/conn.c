@@ -72,6 +72,25 @@ void insertDownNode(conn_peer *newNode){
     return;
 }
 
+void removeDownNode(conn_peer *Node) {
+    if (Node->prev == NULL) {
+        downloadlist_head = Node->next;
+    }
+    else{
+        Node->prev->next = Node->next;
+    }
+
+    if (Node->next == NULL) {
+        downloadlist_tail = Node->prev;
+    }
+    else{
+        Node->next->prev = Node->prev;
+    }
+
+    free(Node);
+
+    return;
+}
 conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     conn_peer *DownNode = (conn_peer *) malloc(sizeof(conn_peer));
     DownNode->peerID = nodeID;

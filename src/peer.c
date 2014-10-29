@@ -14,30 +14,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <CoreFoundation/CoreFoundation.h>
 #include "debug.h"
 #include "spiffy.h"
 #include "bt_parse.h"
 #include "input_buffer.h"
 #include "chunklist.h"
-#include "chunk.h"
-#include "request.h"
 #include "peer.h"
 #include "conn.h"
 #include "queue.h"
 
-short nodeInMap; // the node the packet received from
-//linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
-short jobs[BT_MAX_PEERS]; // the current running task for peers
-chunklist requestList;
+/*record the chunk id currently receiving */
+short jobs[BT_MAX_PEERS];
+
+/*record all the chunks not finish downloading yet*/
 char **request_queue;
-char outf[128];
 
-static bt_config_t *_config;
+/*record the output file*/
+static char outf[128];
+
+/*the program would quit if set to 0*/
+int quit = 1;
+
+/*record the socket variable*/
 static int _sock;
-static chunklist haschunklist;
+/*global value point to the config varial*/
+static bt_config_t *_config;
 
-void peer_run(bt_config_t *config);
+/*the chunks this client current own*/
+static chunklist haschunklist;
 
 // initialize global parameters.
 void peer_init() {  
@@ -47,39 +51,13 @@ void peer_init() {
     }
 }
 
-int main(int argc, char **argv) {
-    bt_config_t config;
-
-    bt_init(&config, argc, argv);
-    peer_init();
-    DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
-
-#ifdef TESTING
-  config.identity = 1; // your group number here
-  strcpy(config.chunk_file, "chunkfile");
-  strcpy(config.has_chunk_file, "haschunks");
-#endif
-
-    bt_parse_command_line(&config);
-
-#ifdef DEBUG
-  if (debug & DEBUG_INIT) {
-    bt_dump_config(&config);
-  }
-#endif
-
-    _config = &config;
-    peer_run(&config);
-    return 0;
-}
-
 void process_inbound_udp(int sock, bt_config_t *config) {
     socklen_t fromlen;
     Packet incomingPacket;
-    Packet *p;
     bt_peer_t *curPeer;
     char **chunk_list;
     char **haschunk_list;
+    int nodeInMap = 0;
     static int numConn = 0;
 
     fromlen = sizeof(incomingPacket.src);
@@ -143,26 +121,27 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            processData(&incomingPacket);
+            processData(&incomingPacket, nodeInMap);
 
             downNode = getDownNode(nodeInMap);
             linkNode* curhead = downNode->hashhead;
 
             if (curhead == NULL) {
                 printf("receive data error, cannot find corresponding hash\n");
+                break;
             }
 
-            if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE)
-                    && curhead->next != NULL ) {
+            if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next != NULL ) {
 
                 printf("Got %s\n", curhead->chunkHash);
                 linkNode *temp = curhead;
                 downNode->hashhead = curhead->next;
-                curhead = curhead->next;
                 free(temp);
                 GetRequest(nodeInMap, &incomingPacket.src);
             }
             else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
+                removeDownNode(downNode);
+//                free(request_queue);
                 printf("JOB is done\n");
             }
             break;
@@ -193,6 +172,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
 // send out whohas request
 char **process_get(char *chunkfile, char *outputfile) {
+    chunklist requestList;
     requestList.type = GET;
     char **chunk_list;
     printf("Processing GET request %s, %s\n", chunkfile, outputfile);
@@ -247,6 +227,9 @@ void handle_user_input(char *line, void *cbdata) {
             request_queue = chunk_list;
         }
     }
+    else if (strcmp(line, "quit") == 0) {
+        quit = 0;
+    }
 }
 
 
@@ -288,7 +271,7 @@ void peer_run(bt_config_t *config) {
     buildChunkList(&haschunklist);
     fclose(haschunklist.chunkfptr);
 
-    while (1) {
+    while (quit) {
         int nfds;
         FD_SET(STDIN_FILENO, &readfds);
         FD_SET(sock, &readfds);
@@ -301,8 +284,7 @@ void peer_run(bt_config_t *config) {
             }
 
             if (FD_ISSET(STDIN_FILENO, &readfds)) {
-                process_user_input(STDIN_FILENO, userbuf, handle_user_input,
-                        "Currently unused");
+                process_user_input(STDIN_FILENO, userbuf, handle_user_input, "Currently unused");
             }
         }
     }
@@ -323,18 +305,50 @@ void free_chunks(char **chunks, int size) {
 }
 
 // put received data into outputfile
-void processData(Packet *incomingPacket)
+void processData(Packet *incomingPacket, int peerID)
 {
     FILE * outfile;
-    Packet *p;
     outfile = fopen(outf, "r+b");
 
     // look for position to insert a data chunk
-    long int offset = CHUNK_SIZE * DATA_SIZE * jobs[nodeInMap]
+    long int offset = CHUNK_SIZE * DATA_SIZE * jobs[peerID]
             + DATA_SIZE * (getPacketSeq(incomingPacket) - 1);
     fseek(outfile, offset, SEEK_SET);
     fwrite(incomingPacket->serial + DATA_OFFSET, sizeof(char), DATA_SIZE, outfile);
     fclose(outfile);
 
     ACKrequest(&incomingPacket->src, getPacketSeq(incomingPacket));
+}
+
+
+int main(int argc, char **argv) {
+    bt_config_t config;
+
+    bt_init(&config, argc, argv);
+    peer_init();
+
+    DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
+
+#ifdef TESTING
+  config.identity = 1; // your group number here
+  strcpy(config.chunk_file, "chunkfile");
+  strcpy(config.has_chunk_file, "haschunks");
+#endif
+
+    bt_parse_command_line(&config);
+
+#ifdef DEBUG
+  if (debug & DEBUG_INIT) {
+    bt_dump_config(&config);
+  }
+#endif
+
+    _config = &config;
+
+    if (parseMasterDatafile(&config) < 0) {
+        return EXIT_FAILURE;
+    }
+
+    peer_run(&config);
+    return 0;
 }
