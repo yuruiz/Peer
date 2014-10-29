@@ -1,3 +1,4 @@
+#include <Python/Python.h>
 #include "chunklist.h"
 #include "request.h"
 #include "input_buffer.h"
@@ -14,8 +15,13 @@ int list_contains(char *chunkHash)
     {
         if (request_queue[i] == NULL )
             continue;
-        else if (strcmp(request_queue[i], chunkHash) == 0){
-            return i;
+        else {
+
+            printf("%s\n", request_queue[i]);
+            if (strcmp(request_queue[i], chunkHash) == 0) {
+                return i;
+            }
+
         }
 
     }
@@ -27,8 +33,9 @@ int list_empty()
     int i;
     for (i = 0; i < MAX_CHUNK_NUM; i++)
     {
-        if (request_queue[i] != NULL )
+        if (request_queue[i] != NULL ){
             return EXIT_FAILURE;
+        }
     }
     return EXIT_SUCCESS;
 }
@@ -43,6 +50,7 @@ void list_remove(char *chunkHash)
             continue;
         else if (strcmp(request_queue[i], chunkHash) == 0)
         {
+            free(request_queue[i]);
             request_queue[i] = NULL;
             return;
         }
@@ -64,10 +72,12 @@ char **buildChunkList(chunklist *cklist) {
 
     while (!feof(cklist->chunkfptr)) {
         char hashbuf[LINESIZE];
+        memset(hashbuf, 0, LINESIZE);
         int hashindex;
 
         chunk_list[chunkCount] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
-        memset(hashbuf, 0, LINESIZE);
+        memset(chunk_list[chunkCount], 0, SHA1_HASH_LENGTH * 2 + 1);
+
         if (fgets(linebuf, LINESIZE, cklist->chunkfptr) == NULL) {
             break;
         }
