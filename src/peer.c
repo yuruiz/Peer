@@ -142,6 +142,8 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 break;
             }
 
+            AckQueueProcess(&incomingPacket, nodeInMap);
+
             if (upNode->windowSize < 8) {
                 upNode->windowSize++;
             }
