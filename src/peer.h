@@ -2,6 +2,7 @@
 #define _PEER_H_
 
 #include "bt_parse.h"
+#include "request.h"
 
 #define HASH_LENGTH 20
 #define MAX_CONN 1024

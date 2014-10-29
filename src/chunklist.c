@@ -5,6 +5,7 @@
 
 #define LINESIZE 8096
 
+extern char **request_queue;
 // check current chunk hash is requested.
 int list_contains(char *chunkHash)
 {
@@ -99,14 +100,12 @@ char **retrieve_chunk_list(Packet *incomingPacket) {
         sizeof(char *));
     memset(chunk_list, 0, getHashCount(incomingPacket) * sizeof(char *));
 
-    for (num_chunks = 0; num_chunks < getHashCount(incomingPacket); \
-        num_chunks++) {
+    for (num_chunks = 0; num_chunks < getHashCount(incomingPacket); num_chunks++) {
         chunk_list[num_chunks] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
         head = num_chunks * SHA1_HASH_LENGTH;
         uint8_t buf[SHA1_HASH_LENGTH];
 
-        strncpy((char*)buf, (const char*)incomingPacket->serial + \
-            HASH_OFFSET + head, SHA1_HASH_LENGTH);
+        strncpy((char*)buf, (const char*)incomingPacket->serial + HASH_OFFSET + head, SHA1_HASH_LENGTH);
 
         binary2hex(buf, SHA1_HASH_LENGTH, chunk_list[num_chunks]);
     }

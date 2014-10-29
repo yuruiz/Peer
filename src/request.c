@@ -12,6 +12,7 @@
 #include "chunk.h"
 #include "queue.h"
 
+extern char **request_queue;
 
 /*Right now Packet only have the default header, the length now is 16*/
 Packet *buildDefaultPacket() {
@@ -89,6 +90,20 @@ void setPacketSeq(Packet *pkt, int seq){
     uint8_t *serial = pkt->serial;
 
     *((uint32_t *)(serial + SEQNUM_OFFSET)) = htonl(seq);
+}
+
+
+void setPacketAck(Packet *pkt, int ack){
+    uint8_t *serial = pkt->serial;
+
+    *((uint32_t *)(serial + ACKNUM_OFFSET)) = htonl(ack);
+}
+
+
+uint32_t getPacketSeq(Packet *pkt){
+    uint8_t *serial = pkt->serial;
+
+    return ntohl(*((uint32_t *)(serial + SEQNUM_OFFSET)));
 }
 
 void insertHash(Packet *pkt, uint8_t *hash) {
@@ -255,44 +270,62 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
     return;
 }
 // send GET message, allow concurrent download.
-void GetRequest(int sock, struct sockaddr_in* from)
+void GetRequest(int nodeID, struct sockaddr_in* from)
 {
     Packet *p;
     int index;
 
+    printf("here\n");
+    conn_peer *node = getDownNode(nodeID);
+
+    if (node == NULL) {
+        printf("GetRequest Error, Cannot get the DownNode\n");
+        return;
+    }
+    linkNode *hashNode = node->hashhead;
+
+    if(hashNode == NULL) {
+        printf("GetRequest Error, Cannot get HashNode");
+        return;
+    }
     // check if the target chunkHash has been transferred
-    while ((index = list_contains(peers[nodeInMap]->chunkHash)) < 0)
-    {
-        if (peers[nodeInMap]->next == NULL )
-        {
-            if (list_empty() == EXIT_SUCCESS)
-            {
+    while ((index = list_contains(hashNode->chunkHash)) < 0) {
+        printf("inside\n");
+        if (hashNode->next == NULL) {
+            if (list_empty() == EXIT_SUCCESS) {
                 printf("JOB is done\n");
             }
             return;
         }
 
-        linkNode *temp = peers[nodeInMap];
-        peers[nodeInMap] = peers[nodeInMap]->next;
+        linkNode *temp = hashNode;
+        hashNode = hashNode->next;
         free(temp);
     }
 
-    if (peers[nodeInMap]->chunkHash == NULL )
+    printf("here2\n");
+
+    if (hashNode->chunkHash == NULL )
     {
         printf("sending chunk equals zero\n");
         return;
     }
 
+//    printf("here3\n");
+
     p = buildDefaultPacket();
     setPakcetType(p, "GET");
     incPacketSize(p, 4);
-    insertHash(p, peers[nodeInMap]->chunkHash);
-    spiffy_sendto(sock, p->serial, getPacketSize(p), 0, (struct sockaddr *) from,
-            sizeof(*from));
+    insertHash(p, (uint8_t*)hashNode->chunkHash);
+    if (spiffy_sendto(getSock(), p->serial, getPacketSize(p), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
+        printf("Send GET request success. %d\n", getPacketSize(p));
+    } else {
+        fprintf(stderr, "send GET failed\n");
+    }
 
-    jobs[nodeInMap] = requestList.list[index].seq;
-
-    printf("Requesting chunk ID: %d from %d\n", jobs[nodeInMap], nodeInMap);
+//    jobs[nodeID] = requestList.list[index].seq;
+//
+//    printf("Requesting chunk ID: %d from %d\n", jobs[nodeID], nodeID);
 
 //    nextExpected[nodeInMap] = 1;
 //    GETTTL[nodeInMap] = 0;
@@ -301,4 +334,22 @@ void GetRequest(int sock, struct sockaddr_in* from)
     // chunk is transferring, remove it so that
     // other peers won't transfer this again
     list_remove(request_queue[index]);
+}
+
+
+void ACKrequest(struct sockaddr_in *from){
+
+    Packet* pkt = buildDefaultPacket();
+    setPakcetType(pkt, "ACK");
+    incPacketSize(pkt, 16);
+    setPacketAck(pkt, 1);
+
+
+    if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
+        printf("Send ACK request success. %d\n", getPacketSize(pkt));
+    } else {
+        fprintf(stderr, "send ACK failed\n");
+    }
+
+    free(pkt);
 }

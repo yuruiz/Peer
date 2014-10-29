@@ -83,7 +83,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             nodeInMap = curPeer->id;
 
     switch (getPacketType(&incomingPacket)) {
-        conn_peer* upNode;
+        conn_peer *upNode;
         case 0:
             // receive WHOHAS request
             dprintf(STDOUT_FILENO, "WHOHAS received\n");
@@ -101,7 +101,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             dprintf(STDOUT_FILENO, "IHAVE received\n");
             chunk_list = retrieve_chunk_list(&incomingPacket);
             buildDownNode(nodeInMap, chunk_list, getHashCount(&incomingPacket));
-            GetRequest(sock, &incomingPacket.src);
+            GetRequest(nodeInMap, &incomingPacket.src);
             free_chunks(chunk_list, getHashCount(&incomingPacket));
             break;
         case 2:
@@ -131,14 +131,8 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            dprintf(STDOUT_FILENO, "DATA received %d from %d\n",
-            getSEG(&incomingPacket), nodeInMap);
-            p = buildDefaultPacket();
-            setPakcetType(p, "ACK");
-            incPacketSize(p, 16);
-            setPacketAcm(p, 1);
-            spiffy_sendto(sock, p->serial, getPacketSize(p), 0, (struct sockaddr *) from,
-            sizeof(*from));   
+            dprintf(STDOUT_FILENO, "DATA received %d from %d\n", getPacketSeq(&incomingPacket), nodeInMap);
+            ACKrequest(&incomingPacket.src);
             break;
         case 4:
             /*receive ACK request*/
@@ -148,7 +142,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 break;
             }
 
-            if(upNode->windowSize < 8){
+            if (upNode->windowSize < 8) {
                 upNode->windowSize++;
             }
 
@@ -179,7 +173,7 @@ char **process_get(char *chunkfile, char *outputfile) {
         return NULL;
     }
 
-    chunk_list  = buildChunkList(&requestList);
+    chunk_list = buildChunkList(&requestList);
 
     fclose(requestList.chunkfptr);
 
@@ -212,8 +206,7 @@ void handle_user_input(char *line, void *cbdata) {
 
     if (sscanf(line, "GET %120s %120s", chunkf, outf)) {
         if (strlen(outf) > 0) {
-            if ((chunk_list = process_get(chunkf, outf)) == NULL )
-            {
+            if ((chunk_list = process_get(chunkf, outf)) == NULL) {
                 perror("I/O error");
                 exit(-1);
             }

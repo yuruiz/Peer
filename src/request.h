@@ -2,6 +2,7 @@
 #define REQUEST_H
 
 #include <stdint.h>
+#include <stdio.h>
 #include "bt_parse.h"
 
 #define MAX_HASH_NUM ((1500 - 20) / 20)
@@ -48,10 +49,12 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config);
 uint8_t getPacketType(Packet *pkt);
 uint16_t getPacketSize(Packet *pkt);
 uint8_t getHashCount(Packet *pkt);
+uint32_t getPacketSeq(Packet *pkt);
 void insertHash(Packet *pkt, uint8_t *hash);
 void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in *from);
 void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, int peerID);
-void GetRequest(int sock, struct sockaddr_in* from);
+void GetRequest(int nodeID, struct sockaddr_in* from);
+void ACKrequest(struct sockaddr_in *from);
 
 
 #endif

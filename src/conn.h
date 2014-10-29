@@ -2,6 +2,7 @@
 #define CONN_H
 
 #include "request.h"
+#include "peer.h"
 
 typedef struct connpeer_t {
     int peerID;
@@ -13,6 +14,7 @@ typedef struct connpeer_t {
 } conn_peer;
 
 conn_peer* getUpNode(int nodeID);
+conn_peer* getDownNode(int nodeID);
 conn_peer* buildDownNode(int nodeID, char **chunk_list, int size);
 void insertNewupNode(conn_peer *newNode);
 #endif

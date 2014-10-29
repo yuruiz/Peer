@@ -79,10 +79,16 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     DownNode->prev = NULL;
     DownNode->next = NULL;
     DownNode->hashhead = curNode;
+    strncpy(curNode->chunkHash, chunk_list[0], 2 * SHA1_HASH_LENGTH + 1);
+    printf("%s\n", chunk_list[0]);
 
     int i;
-    for (i = 0; i < size; i++) {
+    for (i = 1; i < size; i++) {
+        linkNode *temp = (linkNode *) malloc(sizeof(linkNode));
+        curNode->next = temp;
+        curNode = temp;
         strncpy(curNode->chunkHash, chunk_list[i], 2 * SHA1_HASH_LENGTH + 1);
+        printf("%s\n", chunk_list[i]);
         if (i + 1 < size) {
             curNode->next = (linkNode *) malloc(sizeof(linkNode));
             curNode = curNode->next;
@@ -93,3 +99,25 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
 
     return DownNode;
 }
+
+
+conn_peer* getDownNode(int nodeID){
+    if (downloadlist_head == NULL) {
+        return NULL;
+    }
+
+    conn_peer* cur = downloadlist_head;
+
+    while (cur != NULL) {
+        if (cur->peerID == nodeID) {
+            return cur;
+        }
+
+        cur = cur->next;
+    }
+
+    return NULL;
+}
+
+
+

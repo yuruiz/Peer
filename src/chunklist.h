@@ -8,7 +8,7 @@
 #include "request.h"
 #include "chunk.h"
 
-void buildChunkList(chunklist* cklist);
+char** buildChunkList(chunklist* cklist);
 char **retrieve_chunk_list(Packet *incomingPacket);
 char **has_chunks(bt_config_t *config, Packet *p, char **chunk_list);
 int list_contains(char *chunkHash);

@@ -28,6 +28,9 @@ run_client:
 run_server:
 	./peer -p nodes.map -c example/B.haschunks -f /example/C.masterchunks -m 4 -i 2 -d 0
 
+spiffy:
+	./hupsim.pl -m topo.map -n nodes.map -p 12345 -v 0 &
+
 test: peer_test
 	./peer_test
 
@@ -36,6 +39,8 @@ peer: $(OBJS)
 
 make-chunks: $(MK_CHUNK_OBJS)
 	$(CC) $(CFLAGS) $(MK_CHUNK_OBJS) -o $@ $(LDFLAGS)
+
+
 
 clean:
 	rm -f *.o $(BINS) $(TESTBINS)
