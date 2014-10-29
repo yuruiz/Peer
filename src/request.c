@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <CoreGraphics/CoreGraphics.h>
 #include "peer.h"
 #include "chunklist.h"
 #include "request.h"
@@ -123,8 +122,24 @@ void insertHash(Packet *pkt, uint8_t *hash) {
 }
 
 
+void insertGetHash(Packet *pkt, uint8_t *hash){
+    uint8_t *serial = pkt->serial;
+
+    memcpy(serial + HASHNUM_OFFSET, hash, SHA1_HASH_LENGTH);
+
+    incPacketSize(pkt, SHA1_HASH_LENGTH);
+}
+
 int getHashIndex(uint8_t *hash, chunklist *hasChunklist) {
     int i;
+
+    char buf[SHA1_HASH_LENGTH * 2 + 1];
+
+    memset(buf, 0, SHA1_HASH_LENGTH * 2 + 1);
+
+    binary2hex(hash, SHA1_HASH_LENGTH, buf);
+
+    printf("%s\n", buf);
     for (i = 0; i < hasChunklist->chunkNum; ++i) {
         chunkline *hashline = &(hasChunklist->list[i]);
         if (strncmp((char*)hash, (char*)(hashline->hash), SHA1_HASH_LENGTH) == 0) {
@@ -264,6 +279,10 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
             newPacket = buildDataPacket(i + 1, hashIndex, PACKET_DATA_SIZE, config);
         }
 
+        if (newPacket == NULL) {
+            return;
+        }
+
         enDataQueue(newPacket, peerID);
     }
 
@@ -276,7 +295,6 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     Packet *p;
     int index;
 
-    printf("here\n");
     conn_peer *node = getDownNode(nodeID);
 
     if (node == NULL) {
@@ -304,20 +322,19 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
         free(temp);
     }
 
-    printf("here2\n");
-
     if (hashNode->chunkHash == NULL )
     {
         printf("sending chunk equals zero\n");
         return;
     }
 
-//    printf("here3\n");
-
     p = buildDefaultPacket();
     setPakcetType(p, "GET");
-    incPacketSize(p, 4);
-    insertHash(p, (uint8_t*)hashNode->chunkHash);
+
+    char hashbuf[SHA1_HASH_LENGTH];
+    hex2binary(hashNode->chunkHash, SHA1_HASH_LENGTH * 2, hashbuf);
+
+    insertGetHash(p, (uint8_t*)hashbuf);
     if (spiffy_sendto(getSock(), p->serial, getPacketSize(p), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
         printf("Send GET request success. %d\n", getPacketSize(p));
     } else {

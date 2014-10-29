@@ -20,6 +20,6 @@ typedef struct queue_t{
 }queue;
 
 void enDataQueue(Packet* pkt, int peerID);
-void flashDataQueue(int peerID, conn_peer *connNode);
+void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from);
 
 #endif

@@ -136,7 +136,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             DataRequest(config, pkt, &haschunklist, nodeInMap);
 
             /*flush data packet queue*/
-            flashDataQueue(nodeInMap, upNode);
+            flashDataQueue(nodeInMap, upNode, &incomingPacket.src);
 
             break;
         case 3:
@@ -170,7 +170,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 upNode->windowSize++;
             }
 
-            flashDataQueue(nodeInMap, upNode);
+            flashDataQueue(nodeInMap, upNode, &incomingPacket.src);
             break;
         case 5:
             break;

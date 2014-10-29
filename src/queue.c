@@ -66,7 +66,10 @@ queueNode* dequeue(queue* q) {
 
     queueNode* retNode = q->head;
     q->head = q->head->next;
-    q->head->prev = NULL;
+
+    if (q->head != NULL) {
+        q->head->prev = NULL;
+    }
     retNode->next = NULL;
     return retNode;
 }
@@ -95,7 +98,7 @@ void enDataQueue(Packet* pkt, int peerID) {
     return;
 }
 
-void flashDataQueue(int peerID, conn_peer *connNode){
+void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from){
     queue *DataQueue = findDataQueue(peerID);
 
     if (DataQueue == NULL) {
@@ -104,16 +107,26 @@ void flashDataQueue(int peerID, conn_peer *connNode){
     }
 
     while (connNode->windowSize > 0) {
+        printf("here\n");
         queueNode *node = dequeue(DataQueue);
+
+        if (node == NULL) {
+            //todo free the dataQueue
+            return;
+        }
+
         Packet* pkt = node->pkt;
-        if(spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)&(pkt->src), sizeof(pkt->src)) > 0){
-            printf("Send Data request success. %d\n", getPacketSize(pkt));
+        if(spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)from, sizeof(*from)) > 0){
+            printf("Send Data request success. %d\n", getPacketSeq(pkt));
             connNode->windowSize--;
             free(node);
             free(pkt);
+            printf("finished\n");
         }else{
-            fprintf(stderr, "send packet failed\n");
+            fprintf(stderr, "send Data packet failed\n");
             enqueue(DataQueue, node);
         }
     }
+
+    printf("end\n");
 }
