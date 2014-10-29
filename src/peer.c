@@ -27,8 +27,10 @@
 
 short nodeInMap; // the node the packet received from
 //linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
+short jobs[BT_MAX_PEERS]; // the current running task for peers
 chunklist requestList;
 char **request_queue;
+outf[128];
 
 static bt_config_t *_config;
 static int _sock;
@@ -36,11 +38,19 @@ static chunklist haschunklist;
 
 void peer_run(bt_config_t *config);
 
+// initialize global parameters.
+void peer_init() {  
+    int i;
+    for (i = 0; i < BT_MAX_PEERS; i++) {
+        jobs[i] = -1;
+    }
+}
+
 int main(int argc, char **argv) {
     bt_config_t config;
 
     bt_init(&config, argc, argv);
-
+    peer_init();
     DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
 
 #ifdef TESTING
@@ -132,7 +142,21 @@ void process_inbound_udp(int sock, bt_config_t *config) {
         case 3:
             /*receive DATA request*/
             dprintf(STDOUT_FILENO, "DATA received %d from %d\n", getPacketSeq(&incomingPacket), nodeInMap);
-            ACKrequest(&incomingPacket.src);
+            processData(&incomingPacket, config, sock, &incomingPacket.src);
+            /*flush data packet queue*/
+            flashDataQueue(nodeInMap, upNode);
+            if (getPacketSeq(incomingPacket) == CHUNK_SIZE
+                    && current_peer_next_node != NULL ) {
+                printf("Got %s\n", current_peer_node->chunkHash);
+                linkNode *temp = current_peer_node; 
+                current_peer_node = current_peer_node->next;
+                free(temp);
+                GetRequest(nodeInMap, &incomingPacket.src);
+            }
+            else if (getPacketSeq(incomingPacket) == CHUNK_SIZE
+                    && current_peer_next_node == NULL) {
+                printf("JOB is done\n");
+            }
             break;
         case 4:
             /*receive ACK request*/
@@ -200,7 +224,7 @@ char **process_get(char *chunkfile, char *outputfile) {
 }
 
 void handle_user_input(char *line, void *cbdata) {
-    char chunkf[128], outf[128];
+    char chunkf[128];
     char **chunk_list;
 
     bzero(chunkf, sizeof(chunkf));
@@ -288,4 +312,22 @@ void free_chunks(char **chunks, int size) {
         if (chunks[i] != NULL)
             free(chunks[i]);
     free(chunks);
+}
+
+// put received data into outputfile
+void processData(packet *incomingPacket, bt_config_t *config, int sock,
+        struct sockaddr_in *from)
+{
+    FILE * outfile;
+    packet *p;
+    outfile = fopen(outf, "r+b");
+
+    // look for position to insert a data chunk
+    long int offset = CHUNK_SIZE * DATA_SIZE * jobs[nodeInMap]
+            + DATA_SIZE * (getPacketSeq(incomingPacket) - 1);
+    fseek(outfile, offset, SEEK_SET);
+    fwrite(incomingPacket->serial + DATA_OFFSET, sizeof(char), DATA_SIZE, outfile);
+    fclose(outfile);
+
+    ACKrequest(&incomingPacket.src, getPacketSeq(incomingPacket));
 }

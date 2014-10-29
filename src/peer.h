@@ -16,6 +16,9 @@ typedef struct ln
     struct ln *next;
 } linkNode;
 
+//typedef struct command
+
+
 //short nodeInMap; // the node the packet received from
 //linkNode *peers[BT_MAX_PEERS]; // keep info of all the available peers
 //short jobs[BT_MAX_PEERS]; // current job running on each peer.
@@ -23,5 +26,8 @@ typedef struct ln
 
 void free_chunks(char **chunks, int size);
 int getSock();
+void processData(packet *incomingPacket, bt_config_t *config, int sock,
+        struct sockaddr_in *from);
+void peer_init();
 
 #endif /* _PEER_H_ */

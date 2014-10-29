@@ -12,6 +12,7 @@
 #include "queue.h"
 
 extern char **request_queue;
+extern short jobs[BT_MAX_PEERS];
 
 /*Right now Packet only have the default header, the length now is 16*/
 Packet *buildDefaultPacket() {
@@ -340,7 +341,8 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
         fprintf(stderr, "send GET failed\n");
     }
 
-//    jobs[nodeID] = requestList.list[index].seq;
+   // jobs[nodeID] = getHashIndex(hashNode->chunkHash, haschunklist);
+     jobs[nodeID] = index;
 //
 //    printf("Requesting chunk ID: %d from %d\n", jobs[nodeID], nodeID);
 
@@ -354,12 +356,12 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
 }
 
 
-void ACKrequest(struct sockaddr_in *from){
+void ACKrequest(struct sockaddr_in *from int seq){
 
     Packet* pkt = buildDefaultPacket();
     setPakcetType(pkt, "ACK");
     incPacketSize(pkt, 16);
-    setPacketAck(pkt, 1);
+    setPacketAck(pkt, seq);
 
 
     if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
