@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include "debug.h"
 #include "spiffy.h"
 #include "bt_parse.h"
@@ -30,7 +31,7 @@ short nodeInMap; // the node the packet received from
 short jobs[BT_MAX_PEERS]; // the current running task for peers
 chunklist requestList;
 char **request_queue;
-outf[128];
+char outf[128];
 
 static bt_config_t *_config;
 static int _sock;
@@ -94,6 +95,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
     switch (getPacketType(&incomingPacket)) {
         conn_peer *upNode;
+        conn_peer *downNode;
         case 0:
             // receive WHOHAS request
             dprintf(STDOUT_FILENO, "WHOHAS received\n");
@@ -141,20 +143,26 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            dprintf(STDOUT_FILENO, "DATA received %d from %d\n", getPacketSeq(&incomingPacket), nodeInMap);
-            processData(&incomingPacket, config, sock, &incomingPacket.src);
-            /*flush data packet queue*/
-            flashDataQueue(nodeInMap, upNode);
-            if (getPacketSeq(incomingPacket) == CHUNK_SIZE
-                    && current_peer_next_node != NULL ) {
-                printf("Got %s\n", current_peer_node->chunkHash);
-                linkNode *temp = current_peer_node; 
-                current_peer_node = current_peer_node->next;
+            processData(&incomingPacket);
+
+            downNode = getDownNode(nodeInMap);
+            linkNode* curhead = downNode->hashhead;
+
+            if (curhead == NULL) {
+                printf("receive data error, cannot find corresponding hash\n");
+            }
+
+            if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE)
+                    && curhead->next != NULL ) {
+
+                printf("Got %s\n", curhead->chunkHash);
+                linkNode *temp = curhead;
+                downNode->hashhead = curhead->next;
+                curhead = curhead->next;
                 free(temp);
                 GetRequest(nodeInMap, &incomingPacket.src);
             }
-            else if (getPacketSeq(incomingPacket) == CHUNK_SIZE
-                    && current_peer_next_node == NULL) {
+            else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
                 printf("JOB is done\n");
             }
             break;
@@ -315,11 +323,10 @@ void free_chunks(char **chunks, int size) {
 }
 
 // put received data into outputfile
-void processData(packet *incomingPacket, bt_config_t *config, int sock,
-        struct sockaddr_in *from)
+void processData(Packet *incomingPacket)
 {
     FILE * outfile;
-    packet *p;
+    Packet *p;
     outfile = fopen(outf, "r+b");
 
     // look for position to insert a data chunk
@@ -329,5 +336,5 @@ void processData(packet *incomingPacket, bt_config_t *config, int sock,
     fwrite(incomingPacket->serial + DATA_OFFSET, sizeof(char), DATA_SIZE, outfile);
     fclose(outfile);
 
-    ACKrequest(&incomingPacket.src, getPacketSeq(incomingPacket));
+    ACKrequest(&incomingPacket->src, getPacketSeq(incomingPacket));
 }

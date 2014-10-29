@@ -99,6 +99,12 @@ void setPacketAck(Packet *pkt, int ack){
     *((uint32_t *)(serial + ACKNUM_OFFSET)) = htonl(ack);
 }
 
+uint32_t getPacketACK(Packet *pkt){
+    uint8_t *serial = pkt->serial;
+
+    return ntohl(*((uint32_t *)(serial + ACKNUM_OFFSET)));
+}
+
 
 uint32_t getPacketSeq(Packet *pkt){
     uint8_t *serial = pkt->serial;
@@ -158,7 +164,7 @@ Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config){
     incPacketSize(newPacket, size);
     setPacketSeq(newPacket, seq);
 
-    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * PACKET_DATA_SIZE;
+    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * DATA_SIZE;
 
     char* masterfile = config->chunk_file;
 
@@ -266,19 +272,13 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
         return;
     }
 
-    int numPacket = (BT_CHUNK_SIZE + PACKET_DATA_SIZE - 1) / PACKET_DATA_SIZE;
+    int numPacket = BT_CHUNK_SIZE / DATA_SIZE;
 
     int i;
 
     for (i = 0; i < numPacket; ++i) {
         Packet *newPacket;
-        if (i == numPacket - 1) {
-            newPacket = buildDataPacket(i + 1, hashIndex, BT_CHUNK_SIZE % PACKET_DATA_SIZE, config);
-        }
-        else{
-            newPacket = buildDataPacket(i + 1, hashIndex, PACKET_DATA_SIZE, config);
-        }
-
+        newPacket = buildDataPacket(i + 1, hashIndex, DATA_SIZE, config);
         if (newPacket == NULL) {
             return;
         }
@@ -319,6 +319,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
 
         linkNode *temp = hashNode;
         hashNode = hashNode->next;
+        node->hashhead = hashNode;
         free(temp);
     }
 
@@ -356,7 +357,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
 }
 
 
-void ACKrequest(struct sockaddr_in *from int seq){
+void ACKrequest(struct sockaddr_in *from, int seq){
 
     Packet* pkt = buildDefaultPacket();
     setPakcetType(pkt, "ACK");
@@ -365,7 +366,7 @@ void ACKrequest(struct sockaddr_in *from int seq){
 
 
     if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
-        printf("Send ACK request success. %d\n", getPacketSize(pkt));
+//        printf("Send ACK request success. %d\n", getPacketSeq(pkt));
     } else {
         fprintf(stderr, "send ACK failed\n");
     }

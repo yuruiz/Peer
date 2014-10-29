@@ -50,6 +50,7 @@ uint8_t getPacketType(Packet *pkt);
 uint16_t getPacketSize(Packet *pkt);
 uint8_t getHashCount(Packet *pkt);
 uint32_t getPacketSeq(Packet *pkt);
+uint32_t getPacketACK(Packet *pkt);
 void insertHash(Packet *pkt, uint8_t *hash);
 void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in *from);
 void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, int peerID);

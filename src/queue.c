@@ -301,8 +301,6 @@ void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from){
             enqueue(DataQueue, node);
         }
     }
-
-    printf("end\n");
 }
 
 void AckQueueProcess(Packet *packet, int peerID){
@@ -313,7 +311,7 @@ void AckQueueProcess(Packet *packet, int peerID){
         return;
     }
 
-    if (removeQueueNode(AckQueue, getPacketSeq(packet)) < 0) {
+    if (removeQueueNode(AckQueue, getPacketACK(packet)) < 0) {
         printf("Cannot find the AckNode!\n");
         return;
     }
