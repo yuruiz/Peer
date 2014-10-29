@@ -54,7 +54,7 @@ void insertHash(Packet *pkt, uint8_t *hash);
 void IHaveRequest(char **haschunk_list, int size, struct sockaddr_in *from);
 void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, int peerID);
 void GetRequest(int nodeID, struct sockaddr_in* from);
-void ACKrequest(struct sockaddr_in *from);
+void ACKrequest(struct sockaddr_in *from, int seq);
 
 
 #endif
