@@ -18,7 +18,12 @@ conn_peer* buildUpNode(int nodeID){
     upNode = malloc(sizeof(conn_peer));
     upNode->peerID = nodeID;
     upNode->connected = 1;
+    upNode->lastack = 0;
+    upNode->ackdup = 0;
+    upNode->down_chunkID = 0;
+    upNode->prev = NULL;
     upNode->next = NULL;
+    upNode->hashhead = NULL;
     upNode->windowSize = WIN_SIZE;
 
     insertNewupNode(upNode);
@@ -95,6 +100,8 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     conn_peer *DownNode = (conn_peer *) malloc(sizeof(conn_peer));
     DownNode->peerID = nodeID;
     DownNode->windowSize = 0;
+    DownNode->lastack = 0;
+    DownNode->ackdup = 0;
     DownNode->prev = NULL;
     DownNode->next = NULL;
     DownNode->hashhead = NULL;

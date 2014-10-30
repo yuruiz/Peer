@@ -4,9 +4,13 @@
 #include "request.h"
 #include "peer.h"
 
+#define MAX_DUP_NUM 3
+
 typedef struct connpeer_t {
     int peerID;
     int windowSize;
+    int lastack;
+    int ackdup;
     int connected;
     linkNode* hashhead;
     int down_chunkID;

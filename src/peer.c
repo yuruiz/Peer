@@ -167,7 +167,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 }
 
                 if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next != NULL) {
-
                     printf("Got %s\n", curhead->chunkHash);
                     linkNode *temp = curhead;
                     downNode->hashhead = curhead->next;
@@ -196,10 +195,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             }
 
             AckQueueProcess(&incomingPacket, nodeInMap);
-
-            if (upNode->windowSize < 8) {
-                upNode->windowSize++;
-            }
 
             flashDataQueue(nodeInMap, upNode, &incomingPacket.src);
             break;
