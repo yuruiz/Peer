@@ -3,20 +3,22 @@
 #include <stdio.h>
 #include "queue.h"
 #include "spiffy.h"
+#include "conn.h"
+#include "peer.h"
 
 
-static queue *DataQueueList_head = NULL;
-static queue *DataQueueList_tail = NULL;
+static queue* DataQueueList_head = NULL;
+static queue* DataQueueList_tail = NULL;
 
-static queue *AckQueueList_head = NULL;
-static queue *AckQueueList_tail = NULL;
+static queue* AckQueueList_head = NULL;
+static queue* AckQueueList_tail = NULL;
 
-queue *findDataQueue(int peerID) {
+queue* findDataQueue(int peerID) {
     if (DataQueueList_head == NULL) {
         return NULL;
     }
 
-    queue *cur = DataQueueList_head;
+    queue* cur = DataQueueList_head;
 
     while (cur != NULL) {
         if (cur->peerID == peerID) {
@@ -30,12 +32,12 @@ queue *findDataQueue(int peerID) {
 }
 
 
-queue *findAckQueue(int peerID) {
+queue* findAckQueue(int peerID) {
     if (AckQueueList_head == NULL) {
         return NULL;
     }
 
-    queue *cur = AckQueueList_head;
+    queue* cur = AckQueueList_head;
 
     while (cur != NULL) {
         if (cur->peerID == peerID) {
@@ -82,14 +84,14 @@ void removeDataQueue(queue *Queue) {
     if (Queue->prev != NULL) {
         Queue->prev->next = Queue->next;
     }
-    else {
+    else{
         DataQueueList_head = Queue->next;
     }
 
     if (Queue->next != NULL) {
         Queue->next->prev = Queue->prev;
     }
-    else {
+    else{
         DataQueueList_tail = Queue->prev;
     }
 
@@ -114,14 +116,14 @@ void removeAckQueue(queue *Queue) {
     if (Queue->prev != NULL) {
         Queue->prev->next = Queue->next;
     }
-    else {
+    else{
         AckQueueList_head = Queue->next;
     }
 
     if (Queue->next != NULL) {
         Queue->next->prev = Queue->prev;
     }
-    else {
+    else{
         AckQueueList_tail = Queue->prev;
     }
 
@@ -139,17 +141,17 @@ void clearqueue(queue *q) {
         return;
     }
 
-    queueNode *cur = q->head;
+    queueNode* cur = q->head;
 
     while (cur != NULL) {
-        queueNode *temp = cur;
+        queueNode* temp = cur;
         cur = cur->next;
         free(temp);
     }
 }
 
 
-int removeQueueNode(queue *q, int seq) {
+int removeQueueNode(queue *q, int seq){
     if (q->head == NULL) {
         return -1;
     }
@@ -161,14 +163,14 @@ int removeQueueNode(queue *q, int seq) {
             if (cur->prev != NULL) {
                 cur->prev->next = cur->next;
             }
-            else {
+            else{
                 q->head = cur->next;
             }
 
             if (cur->next != NULL) {
                 cur->next->prev = cur->prev;
             }
-            else {
+            else{
                 q->tail = cur->prev;
             }
 
@@ -195,7 +197,7 @@ void enqueue(queue *q, queueNode *node) {
     return;
 }
 
-queueNode *getQueueNodebySeq(queue *q, int seq) {
+queueNode* getQueueNodebySeq(queue* q, int seq) {
     if (q->head == NULL) {
         return NULL;
     }
@@ -213,24 +215,24 @@ queueNode *getQueueNodebySeq(queue *q, int seq) {
     return NULL;
 }
 
-queueNode *dequeue(queue *q) {
+queueNode* dequeue(queue* q) {
     if (q->head == NULL) {
         return NULL;
     }
 
-    queueNode *retNode = q->head;
+    queueNode* retNode = q->head;
     q->head = q->head->next;
 
     if (q->head != NULL) {
         q->head->prev = NULL;
-    } else {
+    }else{
         q->tail = NULL;
     }
     retNode->next = NULL;
     return retNode;
 }
 
-void mergeQueue(queue *head, queue *end) {
+void mergeQueue(queue* head, queue *end) {
     if (head->head == NULL) {
         return;
     }
@@ -239,7 +241,7 @@ void mergeQueue(queue *head, queue *end) {
         end->head = head->head;
         end->tail = head->tail;
     }
-    else {
+    else{
         head->tail->next = end->head;
         end->head = head->head;
     }
@@ -250,9 +252,9 @@ void mergeQueue(queue *head, queue *end) {
     return;
 }
 
-void enAckQueue(Packet *pkt, int peerID) {
+void enAckQueue(Packet* pkt, int peerID){
 
-    queue *AckQueue = findAckQueue(peerID);
+    queue* AckQueue = findAckQueue(peerID);
 
     if (AckQueue == NULL) {
         AckQueue = malloc(sizeof(queue));
@@ -276,9 +278,9 @@ void enAckQueue(Packet *pkt, int peerID) {
     return;
 }
 
-void enDataQueue(Packet *pkt, int peerID) {
+void enDataQueue(Packet* pkt, int peerID) {
 
-    queue *DataQueue = findDataQueue(peerID);
+    queue* DataQueue = findDataQueue(peerID);
 
     if (DataQueue == NULL) {
         DataQueue = malloc(sizeof(queue));
@@ -302,7 +304,7 @@ void enDataQueue(Packet *pkt, int peerID) {
     return;
 }
 
-void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from) {
+void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from){
     queue *DataQueue = findDataQueue(peerID);
 
     if (DataQueue == NULL) {
@@ -318,22 +320,22 @@ void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from) {
             return;
         }
 
-        Packet *pkt = node->pkt;
-        if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
+        Packet* pkt = node->pkt;
+        if(spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)from, sizeof(*from)) > 0){
 //            printf("Send Data request success. %d\n", getPacketSeq(pkt));
             connNode->windowSize--;
             enAckQueue(pkt, peerID);
             free(node);
-        } else {
+        }else{
             fprintf(stderr, "send Data packet failed\n");
             enqueue(DataQueue, node);
         }
     }
 }
 
-void AckQueueProcess(Packet *packet, int peerID) {
+void AckQueueProcess(Packet *packet, int peerID){
     queue *AckQueue = findAckQueue(peerID);
-    conn_peer *upNode = getUpNode(peerID);
+    conn_peer* upNode = getUpNode(peerID);
     int oldestSeq;
     int ack = getPacketACK(packet);
 
@@ -347,7 +349,7 @@ void AckQueueProcess(Packet *packet, int peerID) {
         return;
     }
 
-    if ((oldestSeq = peekQueue(AckQueue)) < 0) {
+    if((oldestSeq = peekQueue(AckQueue)) < 0){
         /*AckQueue is empty*/
         return;
     }
@@ -357,7 +359,7 @@ void AckQueueProcess(Packet *packet, int peerID) {
         upNode->lastack = ack;
 
         while (oldestSeq > 0 && ack >= oldestSeq) {
-            queueNode *temp = dequeue(AckQueue);
+            queueNode* temp = dequeue(AckQueue);
             free(temp->pkt);
             free(temp);
             oldestSeq = peekQueue(AckQueue);
@@ -366,7 +368,7 @@ void AckQueueProcess(Packet *packet, int peerID) {
                 upNode->windowSize++;
             }
         }
-    } else {
+    }else {
         if (ack == upNode->lastack) {
             upNode->ackdup++;
             printf("duplicate ack received\n");
@@ -386,9 +388,7 @@ void AckQueueProcess(Packet *packet, int peerID) {
 
                 //todo shrink the window size
             }
-        }
-        else {
-            printf("Unkown ack %d received, should be %d", ack, upNode->lastack);
+
         }
     }
 
