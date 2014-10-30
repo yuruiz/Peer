@@ -99,6 +99,11 @@ void setPacketAck(Packet *pkt, int ack){
     *((uint32_t *)(serial + ACKNUM_OFFSET)) = htonl(ack);
 }
 
+uint32_t getPacketACK(Packet *pkt){
+    uint8_t *serial = pkt->serial;
+
+    return ntohl(*((uint32_t *)(serial + ACKNUM_OFFSET)));
+}
 
 uint32_t getPacketSeq(Packet *pkt){
     uint8_t *serial = pkt->serial;
