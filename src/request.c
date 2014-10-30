@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -12,6 +13,8 @@
 
 extern char **request_queue;
 extern short jobs[BT_MAX_PEERS];
+extern int nextExpected[BT_MAX_PEERS];
+extern int numDataMisses[BT_MAX_PEERS];
 
 /*Right now Packet only have the default header, the length now is 16*/
 Packet *buildDefaultPacket() {
@@ -104,7 +107,6 @@ uint32_t getPacketACK(Packet *pkt){
     return ntohl(*((uint32_t *)(serial + ACKNUM_OFFSET)));
 }
 
-
 uint32_t getPacketSeq(Packet *pkt){
     uint8_t *serial = pkt->serial;
 
@@ -163,9 +165,9 @@ Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config){
     incPacketSize(newPacket, size);
     setPacketSeq(newPacket, seq);
 
-    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * DATA_SIZE;
+    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * PACKET_DATA_SIZE;
 
-    char* masterfile = config->master_data_file;
+    char* masterfile = config->chunk_file;
 
     FILE *mastfptr;
 
@@ -271,13 +273,19 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
         return;
     }
 
-    int numPacket = BT_CHUNK_SIZE / DATA_SIZE;
+    int numPacket = (BT_CHUNK_SIZE + PACKET_DATA_SIZE - 1) / PACKET_DATA_SIZE;
 
     int i;
 
     for (i = 0; i < numPacket; ++i) {
         Packet *newPacket;
-        newPacket = buildDataPacket(i + 1, hashIndex, DATA_SIZE, config);
+        if (i == numPacket - 1) {
+            newPacket = buildDataPacket(i + 1, hashIndex, BT_CHUNK_SIZE % PACKET_DATA_SIZE, config);
+        }
+        else{
+            newPacket = buildDataPacket(i + 1, hashIndex, PACKET_DATA_SIZE, config);
+        }
+
         if (newPacket == NULL) {
             return;
         }
@@ -308,19 +316,18 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     }
     // check if the target chunkHash has been transferred
     while ((index = list_contains(hashNode->chunkHash)) < 0) {
-        printf("inside1\n");
+        printf("inside\n");
         if (hashNode->next == NULL) {
             if (list_empty() == EXIT_SUCCESS) {
                 free(request_queue);
+                numDataMisses[nodeID] = -1;
                 printf("JOB is done\n");
             }
             return;
         }
-        printf("inside2\n");
 
         linkNode *temp = hashNode;
         hashNode = hashNode->next;
-        node->hashhead = hashNode;
         free(temp);
     }
 
@@ -333,10 +340,10 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     p = buildDefaultPacket();
     setPakcetType(p, "GET");
 
-    uint8_t hashbuf[SHA1_HASH_LENGTH];
+    char hashbuf[SHA1_HASH_LENGTH];
     hex2binary(hashNode->chunkHash, SHA1_HASH_LENGTH * 2, hashbuf);
 
-    insertGetHash(p, hashbuf);
+    insertGetHash(p, (uint8_t*)hashbuf);
     if (spiffy_sendto(getSock(), p->serial, getPacketSize(p), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
         printf("Send GET request success. %d\n", getPacketSize(p));
     } else {
@@ -345,6 +352,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
 
    // jobs[nodeID] = getHashIndex(hashNode->chunkHash, haschunklist);
      jobs[nodeID] = index;
+    nextExpected[nodeID] = 1;
 //
 //    printf("Requesting chunk ID: %d from %d\n", jobs[nodeID], nodeID);
 
@@ -369,7 +377,7 @@ void ACKrequest(struct sockaddr_in *from, int seq){
 
 
     if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
-//        printf("Send ACK request success. %d\n", getPacketSeq(pkt));
+        printf("Send ACK request success. %d\n", getPacketSize(pkt));
     } else {
         fprintf(stderr, "send ACK failed\n");
     }

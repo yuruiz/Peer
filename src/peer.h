@@ -16,7 +16,12 @@ typedef struct ln
     struct ln *next;
 } linkNode;
 
-//typedef struct command
+typedef struct command
+{
+	char **request_queue;
+	int command_num;
+	struct command *next;
+} command_list;
 
 
 //short nodeInMap; // the node the packet received from
