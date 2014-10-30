@@ -1,4 +1,3 @@
-#include <Python/Python.h>
 #include "chunklist.h"
 #include "request.h"
 #include "input_buffer.h"

@@ -1,7 +1,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <Python/Python.h>
 #include "peer.h"
 #include "conn.h"
 #include "request.h"
