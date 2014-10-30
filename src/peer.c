@@ -142,10 +142,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 GetRequest(nodeInMap, &incomingPacket.src);
             }
             else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
-                printf("234\n");
                 removeDownNode(downNode);
-                printf("345\n");
-//                free_chunks(request_queue, MAX_CHUNK_NUM);
                 if (list_empty() == EXIT_SUCCESS) {
                     free(request_queue);
                     printf("JOB is done\n");
@@ -161,10 +158,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             }
 
             AckQueueProcess(&incomingPacket, nodeInMap);
-
-            if (upNode->windowSize < 8) {
-                upNode->windowSize++;
-            }
 
             flashDataQueue(nodeInMap, upNode, &incomingPacket.src);
             break;

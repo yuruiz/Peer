@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "queue.h"
 #include "spiffy.h"
+#include "conn.h"
 #include "peer.h"
 
 
@@ -102,6 +103,13 @@ void removeDataQueue(queue *Queue) {
     free(Queue);
 }
 
+int peekQueue(queue *q) {
+    if (q->head == NULL) {
+        return -1;
+    }
+
+    return q->head->seq;
+}
 
 void removeAckQueue(queue *Queue) {
 
@@ -217,14 +225,36 @@ queueNode* dequeue(queue* q) {
 
     if (q->head != NULL) {
         q->head->prev = NULL;
+    }else{
+        q->tail = NULL;
     }
     retNode->next = NULL;
     return retNode;
 }
 
+void mergeQueue(queue* head, queue *end) {
+    if (head->head == NULL) {
+        return;
+    }
+
+    if (end->head == NULL) {
+        end->head = head->head;
+        end->tail = head->tail;
+    }
+    else{
+        head->tail->next = end->head;
+        end->head = head->head;
+    }
+
+    head->head = NULL;
+    head->tail = NULL;
+
+    return;
+}
+
 void enAckQueue(Packet* pkt, int peerID){
 
-    queue*AckQueue = findAckQueue(peerID);
+    queue* AckQueue = findAckQueue(peerID);
 
     if (AckQueue == NULL) {
         AckQueue = malloc(sizeof(queue));
@@ -305,15 +335,61 @@ void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from){
 
 void AckQueueProcess(Packet *packet, int peerID){
     queue *AckQueue = findAckQueue(peerID);
+    conn_peer* upNode = getUpNode(peerID);
+    int oldestSeq;
+    int ack = getPacketACK(packet);
 
     if (AckQueue == NULL) {
         printf("Cannot find ACK Queue!\n");
         return;
     }
 
-    if (removeQueueNode(AckQueue, getPacketACK(packet)) < 0) {
-        printf("Cannot find the AckNode!\n");
+    if (upNode == NULL) {
+        printf("Ack Queue Process error! Cannot get the upNode\n");
         return;
+    }
+
+    if((oldestSeq = peekQueue(AckQueue)) < 0){
+        /*AckQueue is empty*/
+        return;
+    }
+
+    if (ack >= oldestSeq) {
+        upNode->ackdup = 0;
+        upNode->lastack = ack;
+
+        while (oldestSeq > 0 && ack >= oldestSeq) {
+            queueNode* temp = dequeue(AckQueue);
+            free(temp->pkt);
+            free(temp);
+            oldestSeq = peekQueue(AckQueue);
+
+            if (upNode->windowSize < 8) {
+                upNode->windowSize++;
+            }
+        }
+    }else {
+        if (ack == upNode->lastack) {
+            upNode->ackdup++;
+            printf("duplicate ack received\n");
+
+            if (upNode->ackdup >= MAX_DUP_NUM) {
+                printf("%d duplicate Ack %d received\n", MAX_DUP_NUM, ack);
+                upNode->ackdup = 0;
+
+                queue *DataQueue = findDataQueue(peerID);
+
+                if (DataQueue == NULL) {
+                    printf("Merge Error! Cannot get Dataqueue for peer %d\n", peerID);
+                    return;
+                }
+
+                mergeQueue(AckQueue, DataQueue);
+
+                //todo shrink the window size
+            }
+
+        }
     }
 
     return;
