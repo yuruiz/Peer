@@ -103,6 +103,7 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     linkNode* curNode;
     for (i = 0; i < size; i++) {
         linkNode *temp = (linkNode *) malloc(sizeof(linkNode));
+        temp->next = NULL;
         if (DownNode->hashhead == NULL) {
             DownNode->hashhead = temp;
             curNode = DownNode->hashhead;

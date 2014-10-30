@@ -23,6 +23,8 @@
 #include "conn.h"
 #include "queue.h"
 
+int lastSeq = 0;
+
 /*record the chunk id currently receiving */
 short jobs[BT_MAX_PEERS];
 
@@ -140,9 +142,14 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 GetRequest(nodeInMap, &incomingPacket.src);
             }
             else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
+                printf("234\n");
                 removeDownNode(downNode);
-//                free(request_queue);
-                printf("JOB is done\n");
+                printf("345\n");
+//                free_chunks(request_queue, MAX_CHUNK_NUM);
+                if (list_empty() == EXIT_SUCCESS) {
+                    free(request_queue);
+                    printf("JOB is done\n");
+                }
             }
             break;
         case 4:
@@ -311,6 +318,14 @@ void processData(Packet *incomingPacket, int peerID)
     outfile = fopen(outf, "r+b");
 
     // look for position to insert a data chunk
+
+    int seq = getPacketSeq(incomingPacket);
+
+    if (seq != lastSeq + 1) {
+        printf("packet error!\n");
+    }
+
+    lastSeq = seq;
     long int offset = CHUNK_SIZE * DATA_SIZE * jobs[peerID]
             + DATA_SIZE * (getPacketSeq(incomingPacket) - 1);
     fseek(outfile, offset, SEEK_SET);

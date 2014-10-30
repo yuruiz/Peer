@@ -312,6 +312,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
         printf("inside\n");
         if (hashNode->next == NULL) {
             if (list_empty() == EXIT_SUCCESS) {
+                free(request_queue);
                 printf("JOB is done\n");
             }
             return;
@@ -352,7 +353,9 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
 
     // chunk is transferring, remove it so that
     // other peers won't transfer this again
-    list_remove(request_queue[index]);
+//    list_remove(request_queue[]);
+    free(request_queue[index]);
+    request_queue[index] = NULL;
 }
 
 
