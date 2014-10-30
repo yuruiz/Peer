@@ -10,6 +10,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +24,21 @@
 #include "conn.h"
 #include "queue.h"
 
+/* debug parameter */
 int lastSeq = 0;
+
+/* sliding window control */
+int nextExpected[BT_MAX_PEERS];
+
+/* reliability control */
+int numGetMisses[BT_MAX_PEERS];
+int numDataMisses[BT_MAX_PEERS];
+int numMismatches; //3 dup will invoke retransmission
+
+/* time out */
+struct timeval startTime;
+int TTL[BT_MAX_PEERS][CHUNK_SIZE]; // DATA timeout
+int GETTTL[BT_MAX_PEERS]; // GET timeout
 
 /*record the chunk id currently receiving */
 short jobs[BT_MAX_PEERS];
@@ -47,10 +62,19 @@ static chunklist haschunklist;
 
 // initialize global parameters.
 void peer_init() {  
-    int i;
+    int i, j;
+    struct timeval tvBegin;
+    startTime.tv_sec = tvBegin.tv_sec;
+    startTime.tv_usec = tvBegin.tv_usec;
+    gettimeofday(&tvBegin, NULL);
     for (i = 0; i < BT_MAX_PEERS; i++) {
+        for (j = 0; j < CHUNK_SIZE; j++)
+            TTL[i][j] = -1;
         jobs[i] = -1;
+        numGetMisses[i] = 0;
+        numDataMisses[i] = -1;
     }
+    numMismatches = 0;
 }
 
 void process_inbound_udp(int sock, bt_config_t *config) {
@@ -123,32 +147,43 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            processData(&incomingPacket, nodeInMap);
-
-            downNode = getDownNode(nodeInMap);
-            linkNode* curhead = downNode->hashhead;
-
-            if (curhead == NULL) {
-                printf("receive data error, cannot find corresponding hash\n");
-                break;
+            if (getPacketSeq(&incomingPacket) > nextExpected[nodeInMap]
+                    && numMismatches < 3) {
+                ACKrequest(&incomingPacket.src, nextExpected[nodeInMap] - 1);
+                numMismatches++;
+                numDataMisses[nodeInMap] = 0;
             }
+            else if (getPacketSeq(&incomingPacket) == nextExpected[nodeInMap]) {
+                numDataMisses[nodeInMap] = 0;
+                numMismatches = 0;
+                processData(&incomingPacket, nodeInMap);
+                nextExpected[nodeInMap] = getPacketSeq(&incomingPacket) + 1;
+                downNode = getDownNode(nodeInMap);
+                linkNode *curhead = downNode->hashhead;
 
-            if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next != NULL ) {
+                if (curhead == NULL) {
+                    printf("receive data error, cannot find corresponding hash\n");
+                    break;
+                }
 
-                printf("Got %s\n", curhead->chunkHash);
-                linkNode *temp = curhead;
-                downNode->hashhead = curhead->next;
-                free(temp);
-                GetRequest(nodeInMap, &incomingPacket.src);
-            }
-            else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
-                printf("234\n");
-                removeDownNode(downNode);
-                printf("345\n");
+                if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next != NULL) {
+
+                    printf("Got %s\n", curhead->chunkHash);
+                    linkNode *temp = curhead;
+                    downNode->hashhead = curhead->next;
+                    free(temp);
+                    GetRequest(nodeInMap, &incomingPacket.src);
+                }
+                else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
+                    printf("234\n");
+                    removeDownNode(downNode);
+                    printf("345\n");
+                    numDataMisses[nodeInMap] = -1;
 //                free_chunks(request_queue, MAX_CHUNK_NUM);
-                if (list_empty() == EXIT_SUCCESS) {
-                    free(request_queue);
-                    printf("JOB is done\n");
+                    if (list_empty() == EXIT_SUCCESS) {
+                        free(request_queue);
+                        printf("JOB is done\n");
+                    }
                 }
             }
             break;
@@ -245,6 +280,7 @@ void peer_run(bt_config_t *config) {
     struct sockaddr_in myaddr;
     fd_set readfds;
     struct user_iobuf *userbuf;
+    struct timeval timeout;
 
     if ((userbuf = create_userbuf()) == NULL) {
         perror("peer_run could not allocate userbuf");
@@ -278,12 +314,13 @@ void peer_run(bt_config_t *config) {
     buildChunkList(&haschunklist);
     fclose(haschunklist.chunkfptr);
 
+    timeout.tv_sec = 1;
     while (quit) {
         int nfds;
         FD_SET(STDIN_FILENO, &readfds);
         FD_SET(sock, &readfds);
 
-        nfds = select(sock + 1, &readfds, NULL, NULL, NULL);
+        nfds = select(sock + 1, &readfds, NULL, NULL, &timeout);
 
         if (nfds > 0) {
             if (FD_ISSET(sock, &readfds)) {
@@ -293,6 +330,10 @@ void peer_run(bt_config_t *config) {
             if (FD_ISSET(STDIN_FILENO, &readfds)) {
                 process_user_input(STDIN_FILENO, userbuf, handle_user_input, "Currently unused");
             }
+        }
+        // check timeout
+        if (timeout.tv_sec == 0) {
+
         }
     }
 }
