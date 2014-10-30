@@ -322,7 +322,7 @@ void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from){
 
         Packet* pkt = node->pkt;
         if(spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)from, sizeof(*from)) > 0){
-//            printf("Send Data request success. %d\n", getPacketSeq(pkt));
+            printf("Send Data request success. %d\n", getPacketSeq(pkt));
             connNode->windowSize--;
             enAckQueue(pkt, peerID);
             free(node);

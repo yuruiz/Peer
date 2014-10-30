@@ -12,6 +12,7 @@
 
 extern char **request_queue;
 extern short jobs[BT_MAX_PEERS];
+extern int nextExpected[BT_MAX_PEERS];
 
 /*Right now Packet only have the default header, the length now is 16*/
 Packet *buildDefaultPacket() {
@@ -348,7 +349,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
 //
 //    printf("Requesting chunk ID: %d from %d\n", jobs[nodeID], nodeID);
 
-//    nextExpected[nodeInMap] = 1;
+    nextExpected[nodeID] = 1;
 //    GETTTL[nodeInMap] = 0;
     free(p);
 

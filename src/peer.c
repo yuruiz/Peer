@@ -24,16 +24,13 @@
 #include "conn.h"
 #include "queue.h"
 
-/* debug parameter */
-int lastSeq = 0;
-
 /* sliding window control */
 int nextExpected[BT_MAX_PEERS];
 
 /* reliability control */
 int numGetMisses[BT_MAX_PEERS];
 int numDataMisses[BT_MAX_PEERS];
-int numMismatches; //3 dup will invoke retransmission
+//int numMismatches; //3 dup will invoke retransmission
 
 /* time out */
 struct timeval startTime;
@@ -74,7 +71,7 @@ void peer_init() {
         numGetMisses[i] = 0;
         numDataMisses[i] = -1;
     }
-    numMismatches = 0;
+//    numMismatches = 0;
 }
 
 void process_inbound_udp(int sock, bt_config_t *config) {
@@ -147,15 +144,14 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            if (getPacketSeq(&incomingPacket) > nextExpected[nodeInMap]
-                    && numMismatches < 3) {
+            if (getPacketSeq(&incomingPacket) != nextExpected[nodeInMap]) {
                 ACKrequest(&incomingPacket.src, nextExpected[nodeInMap] - 1);
-                numMismatches++;
+//                numMismatches++;
                 numDataMisses[nodeInMap] = 0;
             }
             else if (getPacketSeq(&incomingPacket) == nextExpected[nodeInMap]) {
                 numDataMisses[nodeInMap] = 0;
-                numMismatches = 0;
+//                numMismatches = 0;
                 processData(&incomingPacket, nodeInMap);
                 nextExpected[nodeInMap] = getPacketSeq(&incomingPacket) + 1;
                 downNode = getDownNode(nodeInMap);
@@ -354,14 +350,6 @@ void processData(Packet *incomingPacket, int peerID)
     outfile = fopen(outf, "r+b");
 
     // look for position to insert a data chunk
-
-    int seq = getPacketSeq(incomingPacket);
-
-    if (seq != lastSeq + 1) {
-        printf("packet error!\n");
-    }
-
-    lastSeq = seq;
     long int offset = CHUNK_SIZE * DATA_SIZE * jobs[peerID]
             + DATA_SIZE * (getPacketSeq(incomingPacket) - 1);
     fseek(outfile, offset, SEEK_SET);
