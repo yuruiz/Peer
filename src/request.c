@@ -359,7 +359,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
 }
 
 
-void ACKrequest(struct sockaddr_in *from int seq){
+void ACKrequest(struct sockaddr_in *from, int seq){
 
     Packet* pkt = buildDefaultPacket();
     setPakcetType(pkt, "ACK");
