@@ -31,7 +31,7 @@ typedef struct command
 
 void free_chunks(char **chunks, int size);
 int getSock();
-void processData(Packet *incomingPacket, int peerID);
+void processData(Packet *incomingPacket, int downJob);
 void peer_init();
 
 #endif /* _PEER_H_ */

@@ -104,6 +104,8 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     DownNode->prev = NULL;
     DownNode->next = NULL;
     DownNode->hashhead = NULL;
+    DownNode->nextExpected = -1;
+    DownNode->downJob = -1;
 
     int i;
     linkNode* curNode;

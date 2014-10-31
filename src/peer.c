@@ -25,12 +25,12 @@
 #include "queue.h"
 
 /* sliding window control */
-int nextExpected[BT_MAX_PEERS];
+//int nextExpected[BT_MAX_PEERS];
 
 /* reliability control */
-int numGetMisses[BT_MAX_PEERS];
-int numDataMisses[BT_MAX_PEERS];
-//int numMismatches; //3 dup will invoke retransmission
+//int numGetMisses[BT_MAX_PEERS];
+//int numDataMisses[BT_MAX_PEERS];
+int numMismatches; //3 dup will invoke retransmission
 
 /* time out */
 struct timeval startTime;
@@ -38,7 +38,7 @@ int TTL[BT_MAX_PEERS][CHUNK_SIZE]; // DATA timeout
 int GETTTL[BT_MAX_PEERS]; // GET timeout
 
 /*record the chunk id currently receiving */
-short jobs[BT_MAX_PEERS];
+//short jobs[BT_MAX_PEERS];
 
 /*record all the chunks not finish downloading yet*/
 char **request_queue;
@@ -67,11 +67,11 @@ void peer_init() {
     for (i = 0; i < BT_MAX_PEERS; i++) {
         for (j = 0; j < CHUNK_SIZE; j++)
             TTL[i][j] = -1;
-        jobs[i] = -1;
-        numGetMisses[i] = 0;
-        numDataMisses[i] = -1;
+//        jobs[i] = -1;
+//        numGetMisses[i] = 0;
+//        numDataMisses[i] = -1;
     }
-//    numMismatches = 0;
+    numMismatches = 0;
 }
 
 void process_inbound_udp(int sock, bt_config_t *config) {
@@ -144,17 +144,18 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            if (getPacketSeq(&incomingPacket) != nextExpected[nodeInMap]) {
-                ACKrequest(&incomingPacket.src, nextExpected[nodeInMap] - 1);
-//                numMismatches++;
-                numDataMisses[nodeInMap] = 0;
+            downNode = getDownNode(nodeInMap);
+            int nextExpected = downNode->nextExpected;
+            if (getPacketSeq(&incomingPacket) != nextExpected && numMismatches < 3) {
+                ACKrequest(&incomingPacket.src, nextExpected - 1);
+                numMismatches++;
+                downNode->numDataMisses = 0;
             }
-            else if (getPacketSeq(&incomingPacket) == nextExpected[nodeInMap]) {
-                numDataMisses[nodeInMap] = 0;
-//                numMismatches = 0;
-                processData(&incomingPacket, nodeInMap);
-                nextExpected[nodeInMap] = getPacketSeq(&incomingPacket) + 1;
-                downNode = getDownNode(nodeInMap);
+            else if (getPacketSeq(&incomingPacket) == nextExpected) {
+                downNode->numDataMisses = 0;
+                numMismatches = 0;
+                processData(&incomingPacket, downNode->downJob);
+                downNode->nextExpected = getPacketSeq(&incomingPacket) + 1;
                 linkNode *curhead = downNode->hashhead;
 
                 if (curhead == NULL) {
@@ -173,7 +174,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                     printf("234\n");
                     removeDownNode(downNode);
                     printf("345\n");
-                    numDataMisses[nodeInMap] = -1;
+                    downNode->numDataMisses = -1;
 //                free_chunks(request_queue, MAX_CHUNK_NUM);
                     if (list_empty() == EXIT_SUCCESS) {
                         free(request_queue);
@@ -344,13 +345,13 @@ void free_chunks(char **chunks, int size) {
 }
 
 // put received data into outputfile
-void processData(Packet *incomingPacket, int peerID)
+void processData(Packet *incomingPacket, int downJob)
 {
     FILE * outfile;
     outfile = fopen(outf, "r+b");
 
     // look for position to insert a data chunk
-    long int offset = CHUNK_SIZE * DATA_SIZE * jobs[peerID]
+    long int offset = CHUNK_SIZE * DATA_SIZE * downJob
             + DATA_SIZE * (getPacketSeq(incomingPacket) - 1);
     fseek(outfile, offset, SEEK_SET);
     fwrite(incomingPacket->serial + DATA_OFFSET, sizeof(char), DATA_SIZE, outfile);
