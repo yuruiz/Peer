@@ -12,6 +12,11 @@ typedef struct connpeer_t {
     int lastack;
     int ackdup;
     int connected;
+    int nextExpected;
+    int downJob;
+    int numGetMisses;
+    int numDataMisses;
+    int TTL[CHUNK_SIZE];
     linkNode* hashhead;
     int down_chunkID;
     struct connpeer_t* prev;
