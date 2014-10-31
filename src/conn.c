@@ -16,7 +16,7 @@ conn_peer* buildUpNode(int nodeID){
     conn_peer* upNode;
     upNode = malloc(sizeof(conn_peer));
     upNode->peerID = nodeID;
-    upNode->connected = 1;
+    upNode->connected = 0;
     upNode->lastack = 0;
     upNode->ackdup = 0;
     upNode->down_chunkID = 0;

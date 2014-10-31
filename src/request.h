@@ -25,6 +25,7 @@
 
 typedef struct _packet{
     struct sockaddr_in src;
+    struct timeval timestamp;
     uint8_t serial[1500];
 } Packet;
 

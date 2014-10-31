@@ -18,6 +18,8 @@ extern char **request_queue;
 Packet *buildDefaultPacket() {
     Packet *pkt = calloc(sizeof(Packet), 1);
 
+    pkt->timestamp.tv_usec = 0;
+    pkt->timestamp.tv_sec = 0;
     uint8_t *serial = pkt->serial;
     *((uint16_t *) serial) = htons(15441);
     *(serial + VERSION_OFFSET) = 1;
@@ -60,7 +62,7 @@ uint8_t getPacketType(Packet *pkt) {
     return *((uint8_t *) (ptr + TYPE_OFFSET));
 }
 
-void incPacketSize(Packet *pkt, uint8_t size) {
+void incPacketSize(Packet *pkt, uint16_t size) {
     uint8_t *serial = pkt->serial;
     uint16_t CurSize = ntohs(*((uint16_t *) (serial + PKLEN_OFFET)));
     CurSize += size;
@@ -158,7 +160,7 @@ int getHashIndex(uint8_t *hash, chunklist *hasChunklist) {
 }
 
 
-Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config){
+Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config, struct sockaddr_in *dest){
     Packet* newPacket = buildDefaultPacket();
     setPakcetType(newPacket, "DATA");
     incPacketSize(newPacket, size);
@@ -184,7 +186,11 @@ Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config){
         return NULL;
     }
 
+    printf("new packet size %d\n", getPacketSize(newPacket));
+
     fclose(mastfptr);
+
+    memcpy(&newPacket->src, dest, sizeof(newPacket->src));
 
     return newPacket;
 
@@ -278,7 +284,7 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
 
     for (i = 0; i < numPacket; ++i) {
         Packet *newPacket;
-        newPacket = buildDataPacket(i + 1, hashIndex, DATA_SIZE, config);
+        newPacket = buildDataPacket(i + 1, hashIndex, DATA_SIZE, config, &request->src);
         if (newPacket == NULL) {
             return;
         }

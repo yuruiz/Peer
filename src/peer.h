@@ -8,7 +8,8 @@
 #define MAX_CONN 1024
 #define MAX_PEER_NUM 1024
 #define PACK_SIZE 1500
-#define WIN_SIZE 8;
+#define WIN_SIZE 8
+#define TIME_OUT 3
 
 typedef struct ln
 {
@@ -33,5 +34,7 @@ void free_chunks(char **chunks, int size);
 int getSock();
 void processData(Packet *incomingPacket, int downJob);
 void peer_init();
+void increaseConn();
+void decreseConn();
 
 #endif /* _PEER_H_ */

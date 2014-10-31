@@ -23,6 +23,7 @@ typedef struct queue_t{
 void clearqueue(queue *q);
 void enDataQueue(Packet* pkt, int peerID);
 void AckQueueProcess(Packet *packet, int peerID);
-void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from);
+void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from);
+void flushTimeoutAck();
 
 #endif

@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include "queue.h"
 #include "spiffy.h"
 #include "conn.h"
@@ -31,6 +32,9 @@ queue* findDataQueue(int peerID) {
     return NULL;
 }
 
+queue* getAckQueueHead(){
+    return AckQueueList_head;
+}
 
 queue* findAckQueue(int peerID) {
     if (AckQueueList_head == NULL) {
@@ -232,9 +236,9 @@ queueNode* dequeue(queue* q) {
     return retNode;
 }
 
-void mergeQueue(queue* head, queue *end) {
-    if (head->head == NULL) {
-        return;
+int mergeQueue(queue* head, queue *end) {
+    if (head == NULL || end == NULL || head->head == NULL) {
+        return -1;
     }
 
     if (end->head == NULL) {
@@ -249,7 +253,7 @@ void mergeQueue(queue* head, queue *end) {
     head->head = NULL;
     head->tail = NULL;
 
-    return;
+    return 0;
 }
 
 void enAckQueue(Packet* pkt, int peerID){
@@ -304,11 +308,10 @@ void enDataQueue(Packet* pkt, int peerID) {
     return;
 }
 
-void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from){
+void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
     queue *DataQueue = findDataQueue(peerID);
 
     if (DataQueue == NULL) {
-//        printf("Cannot get the corresponding dataqueue, flash data queue error\n");
         return;
     }
 
@@ -316,13 +319,13 @@ void flashDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in* from){
         queueNode *node = dequeue(DataQueue);
 
         if (node == NULL) {
-            removeDataQueue(DataQueue);
             return;
         }
 
         Packet* pkt = node->pkt;
         if(spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)from, sizeof(*from)) > 0){
-            printf("Send Data request success. %d\n", getPacketSeq(pkt));
+            printf("Send Data request success. seq %d size: %d\n", getPacketSeq(pkt), getPacketSize(pkt));
+            gettimeofday(&pkt->timestamp, NULL);
             connNode->windowSize--;
             enAckQueue(pkt, peerID);
             free(node);
@@ -368,6 +371,13 @@ void AckQueueProcess(Packet *packet, int peerID){
                 upNode->windowSize++;
             }
         }
+
+        if (ack == CHUNK_SIZE) {
+            printf("Data transmisstion finished\n");
+            removeDataQueue(findDataQueue(peerID));
+            removeAckQueue(findAckQueue(peerID));
+
+        }
     }else {
         if (ack == upNode->lastack) {
             upNode->ackdup++;
@@ -385,12 +395,40 @@ void AckQueueProcess(Packet *packet, int peerID){
                 }
 
                 mergeQueue(AckQueue, DataQueue);
-
-                //todo shrink the window size
+                upNode->windowSize = 8;
             }
 
         }
     }
 
     return;
+}
+
+void flushTimeoutAck(){
+    queue* cur = getAckQueueHead();
+
+    while (cur != NULL) {
+        if (cur->head == NULL) {
+            cur = cur->next;
+            continue;
+        }
+
+        struct timeval curT;
+        Packet* pkt = cur->head->pkt;
+
+        gettimeofday(&curT, NULL);
+
+        if (curT.tv_sec - pkt->timestamp.tv_sec > TIME_OUT) {
+            printf("Packet %d time out\n", getPacketSeq(pkt));
+            conn_peer *upnode = getUpNode(cur->peerID);
+            upnode->windowSize = 8;
+            if(mergeQueue(cur, findDataQueue(cur->peerID)) < 0) {
+                printf("merge failed\n");
+            }
+
+            flushDataQueue(cur->peerID, upnode, &pkt->src);
+        }
+        cur = cur->next;
+
+    }
 }

@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <curses.h>
 #include "debug.h"
 #include "spiffy.h"
 #include "bt_parse.h"
@@ -57,9 +58,13 @@ static bt_config_t *_config;
 /*the chunks this client current own*/
 static chunklist haschunklist;
 
+
+/*Record the Connection Count*/
+static int numConn = 0;
+
 // initialize global parameters.
-void peer_init() {  
-    int i, j;
+void peer_init() {
+//    int i, j;
     struct timeval tvBegin;
     startTime.tv_sec = tvBegin.tv_sec;
     startTime.tv_usec = tvBegin.tv_usec;
@@ -81,7 +86,8 @@ void process_inbound_udp(int sock, bt_config_t *config) {
     char **chunk_list;
     char **haschunk_list;
     int nodeInMap = 0;
-    static int numConn = 0;
+    conn_peer *upNode;
+    conn_peer *downNode;
 
     fromlen = sizeof(incomingPacket.src);
     memset(incomingPacket.serial, 0, PACK_SIZE);
@@ -95,42 +101,47 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             nodeInMap = curPeer->id;
 
     switch (getPacketType(&incomingPacket)) {
-        conn_peer *upNode;
-        conn_peer *downNode;
         case 0:
             // receive WHOHAS request
             dprintf(STDOUT_FILENO, "WHOHAS received\n");
             chunk_list = retrieve_chunk_list(&incomingPacket);
             haschunk_list = has_chunks(config, &incomingPacket, chunk_list);
+
             if (haschunk_list[0] != NULL) {
-                IHaveRequest(haschunk_list, getHashCount(&incomingPacket), \
-                    &incomingPacket.src);
+                IHaveRequest(haschunk_list, getHashCount(&incomingPacket), &incomingPacket.src);
             }
+
             free_chunks(chunk_list, getHashCount(&incomingPacket));
             free_chunks(haschunk_list, getHashCount(&incomingPacket));
             break;
         case 1:
             /*receive IHAVE request*/
             dprintf(STDOUT_FILENO, "IHAVE received\n");
+
             chunk_list = retrieve_chunk_list(&incomingPacket);
+
             buildDownNode(nodeInMap, chunk_list, getHashCount(&incomingPacket));
+
             GetRequest(nodeInMap, &incomingPacket.src);
+
             free_chunks(chunk_list, getHashCount(&incomingPacket));
+
             break;
         case 2:
             /*receive GET request*/
             dprintf(STDOUT_FILENO, "GET received\n");
-            if (numConn >= MAX_CONN) {
+            if (numConn >= config->max_conn) {
                 dprintf(STDOUT_FILENO, "too much connection\n");
                 break;
             }
 
-            numConn++;
-
             if ((upNode = getUpNode(nodeInMap)) == NULL) {
-
                 break;
             }
+
+            upNode->connected = 1;
+
+            increaseConn();
 
             Packet *pkt = malloc(sizeof(Packet));
             memcpy(pkt, &incomingPacket, sizeof(Packet));
@@ -139,8 +150,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             DataRequest(config, pkt, &haschunklist, nodeInMap);
 
             /*flush data packet queue*/
-            flashDataQueue(nodeInMap, upNode, &incomingPacket.src);
-
+            flushDataQueue(nodeInMap, upNode, &incomingPacket.src);
             break;
         case 3:
             /*receive DATA request*/
@@ -171,9 +181,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                     GetRequest(nodeInMap, &incomingPacket.src);
                 }
                 else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
-                    printf("234\n");
                     removeDownNode(downNode);
-                    printf("345\n");
                     downNode->numDataMisses = -1;
 //                free_chunks(request_queue, MAX_CHUNK_NUM);
                     if (list_empty() == EXIT_SUCCESS) {
@@ -193,7 +201,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
             AckQueueProcess(&incomingPacket, nodeInMap);
 
-            flashDataQueue(nodeInMap, upNode, &incomingPacket.src);
+            flushDataQueue(nodeInMap, upNode, &incomingPacket.src);
             break;
         case 5:
             break;
@@ -306,11 +314,13 @@ void peer_run(bt_config_t *config) {
     buildChunkList(&haschunklist);
     fclose(haschunklist.chunkfptr);
 
-    timeout.tv_sec = 1;
     while (quit) {
         int nfds;
         FD_SET(STDIN_FILENO, &readfds);
         FD_SET(sock, &readfds);
+
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
 
         nfds = select(sock + 1, &readfds, NULL, NULL, &timeout);
 
@@ -323,10 +333,8 @@ void peer_run(bt_config_t *config) {
                 process_user_input(STDIN_FILENO, userbuf, handle_user_input, "Currently unused");
             }
         }
-        // check timeout
-        if (timeout.tv_sec == 0) {
 
-        }
+        flushTimeoutAck();
     }
 }
 
@@ -345,9 +353,8 @@ void free_chunks(char **chunks, int size) {
 }
 
 // put received data into outputfile
-void processData(Packet *incomingPacket, int downJob)
-{
-    FILE * outfile;
+void processData(Packet *incomingPacket, int downJob) {
+    FILE *outfile;
     outfile = fopen(outf, "r+b");
 
     // look for position to insert a data chunk
@@ -360,6 +367,18 @@ void processData(Packet *incomingPacket, int downJob)
     ACKrequest(&incomingPacket->src, getPacketSeq(incomingPacket));
 }
 
+void decreseConn() {
+
+    if (numConn > 0) {
+        numConn--;
+    }
+}
+
+void increaseConn() {
+    if (numConn < _config->max_conn) {
+        numConn++;
+    }
+}
 
 int main(int argc, char **argv) {
     bt_config_t config;
@@ -392,3 +411,4 @@ int main(int argc, char **argv) {
     peer_run(&config);
     return 0;
 }
+
