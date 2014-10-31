@@ -34,8 +34,8 @@ int numMismatches; //3 dup will invoke retransmission
 
 /* time out */
 struct timeval startTime;
-int TTL[BT_MAX_PEERS][CHUNK_SIZE]; // DATA timeout
-int GETTTL[BT_MAX_PEERS]; // GET timeout
+//int TTL[BT_MAX_PEERS][CHUNK_SIZE]; // DATA timeout
+//int GETTTL[BT_MAX_PEERS]; // GET timeout
 
 /*record the chunk id currently receiving */
 //short jobs[BT_MAX_PEERS];
@@ -64,13 +64,13 @@ void peer_init() {
     startTime.tv_sec = tvBegin.tv_sec;
     startTime.tv_usec = tvBegin.tv_usec;
     gettimeofday(&tvBegin, NULL);
-    for (i = 0; i < BT_MAX_PEERS; i++) {
-        for (j = 0; j < CHUNK_SIZE; j++)
-            TTL[i][j] = -1;
+//    for (i = 0; i < BT_MAX_PEERS; i++) {
+//        for (j = 0; j < CHUNK_SIZE; j++)
+//            TTL[i][j] = -1;
 //        jobs[i] = -1;
 //        numGetMisses[i] = 0;
 //        numDataMisses[i] = -1;
-    }
+//    }
     numMismatches = 0;
 }
 

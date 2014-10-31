@@ -16,7 +16,7 @@ int list_contains(char *chunkHash)
             continue;
         else {
 
-            printf("%s\n", request_queue[i]);
+    //        printf("%s\n", request_queue[i]);
             if (strcmp(request_queue[i], chunkHash) == 0) {
                 return i;
             }
