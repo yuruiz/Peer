@@ -118,7 +118,7 @@ char **retrieve_chunk_list(Packet *incomingPacket) {
 
         strncpy((char*)buf, (const char*)incomingPacket->serial + HASH_OFFSET + head, SHA1_HASH_LENGTH);
 
-        binary2hex(buf, SHA1_HASH_LENGTH, chunk_list[num_chunks]);
+        binary2hex(incomingPacket->serial + HASH_OFFSET + head, SHA1_HASH_LENGTH, chunk_list[num_chunks]);
      //   printf("retrieve: %s\n", chunk_list[num_chunks]);
     }
 
