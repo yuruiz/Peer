@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include "bt_parse.h"
 
 #define MAX_HASH_NUM ((1500 - 20) / 20)

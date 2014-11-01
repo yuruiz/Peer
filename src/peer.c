@@ -31,7 +31,6 @@
 /* reliability control */
 //int numGetMisses[BT_MAX_PEERS];
 //int numDataMisses[BT_MAX_PEERS];
-//int numMismatches; //3 dup will invoke retransmission
 
 /* time out */
 struct timeval startTime;
@@ -61,6 +60,9 @@ static chunklist haschunklist;
 
 /*Record the Connection Count*/
 static int numConn = 0;
+
+
+static int Timeout = 0;
 
 // initialize global parameters.
 void peer_init() {
@@ -157,15 +159,17 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             /*receive DATA request*/
             printf("receive data:%d \r", getPacketSeq(&incomingPacket));
             downNode = getDownNode(nodeInMap);
+            if (downNode == NULL) {
+                break;
+            }
             int nextExpected = downNode->nextExpected;
             if (getPacketSeq(&incomingPacket) != nextExpected) {
                 ACKrequest(&incomingPacket.src, nextExpected - 1);
-            //    numMismatches++;
                 downNode->numDataMisses = 0;
             }
             else if (getPacketSeq(&incomingPacket) == nextExpected) {
                 downNode->numDataMisses = 0;
-             //   numMismatches = 0;
+                printf("Received Packet %d\n", nextExpected);
                 processData(&incomingPacket, downNode->downJob);
                 downNode->nextExpected = getPacketSeq(&incomingPacket) + 1;
                 linkNode *curhead = downNode->hashhead;
@@ -185,7 +189,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
                     removeDownNode(downNode);
                     downNode->numDataMisses = -1;
-//                free_chunks(request_queue, MAX_CHUNK_NUM);
                     if (list_empty() == EXIT_SUCCESS) {
                         free(request_queue);
                         printf("JOB is done\n");
@@ -321,8 +324,8 @@ void peer_run(bt_config_t *config) {
         FD_SET(STDIN_FILENO, &readfds);
         FD_SET(sock, &readfds);
 
-        timeout.tv_sec = 1;
-        timeout.tv_usec = 0;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 500;
 
         nfds = select(sock + 1, &readfds, NULL, NULL, &timeout);
 
@@ -343,6 +346,15 @@ void peer_run(bt_config_t *config) {
 
 int getSock() {
     return _sock;
+}
+
+
+void setTimeout(int timeout){
+    Timeout = timeout;
+}
+
+int getTimeout(){
+    return Timeout;
 }
 
 // free chunk list.

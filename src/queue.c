@@ -6,6 +6,7 @@
 #include "spiffy.h"
 #include "conn.h"
 #include "peer.h"
+#include "congest.h"
 
 
 static queue* DataQueueList_head = NULL;
@@ -315,7 +316,7 @@ void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
         return;
     }
 
-    while (connNode->windowSize > 0) {
+    while (connNode->lastAck + connNode->windowSize > peekQueue(DataQueue)) {
         queueNode *node = dequeue(DataQueue);
 
         if (node == NULL) {
@@ -326,7 +327,7 @@ void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
         if(spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)from, sizeof(*from)) > 0){
             printf("Send Data request success. seq %d size: %d\n", getPacketSeq(pkt), getPacketSize(pkt));
             gettimeofday(&pkt->timestamp, NULL);
-            connNode->windowSize--;
+            connNode->lastSend = getPacketSeq(pkt);
             enAckQueue(pkt, peerID);
             free(node);
         }else{
@@ -357,19 +358,29 @@ void AckQueueProcess(Packet *packet, int peerID){
         return;
     }
 
+//    printf("receive ack %d\n", ack);
     if (ack >= oldestSeq) {
         upNode->ackdup = 0;
-        upNode->lastack = ack;
+        upNode->lastAck = ack;
 
         while (oldestSeq > 0 && ack >= oldestSeq) {
             queueNode* temp = dequeue(AckQueue);
+
+            if (ack == getPacketSeq(temp->pkt)) {
+                struct timeval curT;
+                gettimeofday(&curT, NULL);
+
+                int prevTimout = getTimeout();
+                int curTimeout = (2 * (int)(curT.tv_sec - temp->pkt->timestamp.tv_sec) + prevTimout / 2);
+                setTimeout(curTimeout);
+
+//                printf("Current Time out is %d\n", curTimeout);
+//                printf("Previous Time out is %d\n", prevTimout);
+            }
             free(temp->pkt);
             free(temp);
             oldestSeq = peekQueue(AckQueue);
-
-            if (upNode->windowSize < 8) {
-                upNode->windowSize++;
-            }
+            expandWin(upNode);
         }
 
         if (ack == CHUNK_SIZE) {
@@ -379,7 +390,7 @@ void AckQueueProcess(Packet *packet, int peerID){
 
         }
     }else {
-        if (ack == upNode->lastack) {
+        if (ack == upNode->lastAck) {
             upNode->ackdup++;
             printf("duplicate ack received\n");
 
@@ -395,7 +406,8 @@ void AckQueueProcess(Packet *packet, int peerID){
                 }
 
                 mergeQueue(AckQueue, DataQueue);
-                upNode->windowSize = 8;
+                upNode->lastSend = peekQueue(AckQueue);
+                shrinkWin(upNode);
             }
 
         }
@@ -418,13 +430,23 @@ void flushTimeoutAck(){
 
         gettimeofday(&curT, NULL);
 
-        if (curT.tv_sec - pkt->timestamp.tv_sec > TIME_OUT) {
+        int curTime = getTimeout();
+
+        if (curTime == 0) {
+            curTime = TIME_OUT;
+        }
+
+        if (curT.tv_sec - pkt->timestamp.tv_sec > curTime) {
             printf("Packet %d time out\n", getPacketSeq(pkt));
             conn_peer *upnode = getUpNode(cur->peerID);
-            upnode->windowSize = 8;
+
+
+            shrinkWin(upnode);
             if(mergeQueue(cur, findDataQueue(cur->peerID)) < 0) {
                 printf("merge failed\n");
             }
+
+            upnode->lastSend = peekQueue(cur);
 
             flushDataQueue(cur->peerID, upnode, &pkt->src);
         }
