@@ -31,7 +31,6 @@
 /* reliability control */
 //int numGetMisses[BT_MAX_PEERS];
 //int numDataMisses[BT_MAX_PEERS];
-int numMismatches; //3 dup will invoke retransmission
 
 /* time out */
 struct timeval startTime;
@@ -62,6 +61,9 @@ static chunklist haschunklist;
 /*Record the Connection Count*/
 static int numConn = 0;
 
+
+static int Timeout = 0;
+
 // initialize global parameters.
 void peer_init() {
 //    int i, j;
@@ -76,7 +78,7 @@ void peer_init() {
 //        numGetMisses[i] = 0;
 //        numDataMisses[i] = -1;
 //    }
-    numMismatches = 0;
+//    numMismatches = 0;
 }
 
 void process_inbound_udp(int sock, bt_config_t *config) {
@@ -155,15 +157,19 @@ void process_inbound_udp(int sock, bt_config_t *config) {
         case 3:
             /*receive DATA request*/
             downNode = getDownNode(nodeInMap);
+            if (downNode == NULL) {
+                break;
+            }
             int nextExpected = downNode->nextExpected;
-            if (getPacketSeq(&incomingPacket) != nextExpected && numMismatches < 3) {
+            if (getPacketSeq(&incomingPacket) != nextExpected) {
                 ACKrequest(&incomingPacket.src, nextExpected - 1);
-                numMismatches++;
+//                numMismatches++;
                 downNode->numDataMisses = 0;
             }
             else if (getPacketSeq(&incomingPacket) == nextExpected) {
                 downNode->numDataMisses = 0;
-                numMismatches = 0;
+                printf("Received Packet %d\n", nextExpected);
+//                numMismatches = 0;
                 processData(&incomingPacket, downNode->downJob);
                 downNode->nextExpected = getPacketSeq(&incomingPacket) + 1;
                 linkNode *curhead = downNode->hashhead;
@@ -183,7 +189,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
                     removeDownNode(downNode);
                     downNode->numDataMisses = -1;
-//                free_chunks(request_queue, MAX_CHUNK_NUM);
                     if (list_empty() == EXIT_SUCCESS) {
                         free(request_queue);
                         printf("JOB is done\n");
@@ -245,7 +250,7 @@ char **process_get(char *chunkfile, char *outputfile) {
         char buf[50];
         bzero(buf, 50);
         chunkline *line = &(requestList.list[i]);
-        binary2hex(line->hash, 20, buf);
+        binary2hex(line->hash, SHA1_HASH_LENGTH, buf);
         printf("%d: %s\n", line->seq, buf);
     }
 
@@ -319,8 +324,8 @@ void peer_run(bt_config_t *config) {
         FD_SET(STDIN_FILENO, &readfds);
         FD_SET(sock, &readfds);
 
-        timeout.tv_sec = 1;
-        timeout.tv_usec = 0;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 500;
 
         nfds = select(sock + 1, &readfds, NULL, NULL, &timeout);
 
@@ -341,6 +346,15 @@ void peer_run(bt_config_t *config) {
 
 int getSock() {
     return _sock;
+}
+
+
+void setTimeout(int timeout){
+    Timeout = timeout;
+}
+
+int getTimeout(){
+    return Timeout;
 }
 
 // free chunk list.

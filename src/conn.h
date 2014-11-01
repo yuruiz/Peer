@@ -5,11 +5,14 @@
 #include "peer.h"
 
 #define MAX_DUP_NUM 3
+#define INIT_THRESH 128
+
+typedef enum _congMode{
+    SLOW_START, CONGEST_AVOID
+}mode;
 
 typedef struct connpeer_t {
     int peerID;
-    int windowSize;
-    int lastack;
     int ackdup;
     int connected;
     int nextExpected;
@@ -19,6 +22,15 @@ typedef struct connpeer_t {
     int TTL[CHUNK_SIZE];
     linkNode* hashhead;
     int down_chunkID;
+
+    /*Congestion Control*/
+    mode congestCtl;
+    int windowSize;
+    int lastSend;
+    int lastAck;
+    int ssthreshold;
+    int roundInc;
+
     struct connpeer_t* prev;
     struct connpeer_t* next;
 } conn_peer;

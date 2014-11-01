@@ -59,7 +59,7 @@ void setPakcetType(Packet *pkt, char *type) {
 
 uint8_t getPacketType(Packet *pkt) {
     uint8_t *ptr = (pkt->serial);
-    return *((uint8_t *) (ptr + TYPE_OFFSET));
+    return *(ptr + TYPE_OFFSET);
 }
 
 void incPacketSize(Packet *pkt, uint16_t size) {
@@ -320,7 +320,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
             if (list_empty() == EXIT_SUCCESS) {
                 free(request_queue);
                 node->numDataMisses = -1;
-                printf("JOB is done\n");
+                printf("task is done\n");
             }
             return;
         }
