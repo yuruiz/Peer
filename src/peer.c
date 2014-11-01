@@ -119,6 +119,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             dprintf(STDOUT_FILENO, "IHAVE received\n");
 
             chunk_list = retrieve_chunk_list(&incomingPacket);
+            printf("retrieve: %s\n", chunk_list[0]);
 
             buildDownNode(nodeInMap, chunk_list, getHashCount(&incomingPacket));
 
