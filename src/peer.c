@@ -31,7 +31,7 @@
 /* reliability control */
 //int numGetMisses[BT_MAX_PEERS];
 //int numDataMisses[BT_MAX_PEERS];
-int numMismatches; //3 dup will invoke retransmission
+//int numMismatches; //3 dup will invoke retransmission
 
 /* time out */
 struct timeval startTime;
@@ -76,7 +76,7 @@ void peer_init() {
 //        numGetMisses[i] = 0;
 //        numDataMisses[i] = -1;
 //    }
-    numMismatches = 0;
+//    numMismatches = 0;
 }
 
 void process_inbound_udp(int sock, bt_config_t *config) {
@@ -158,14 +158,14 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             printf("receive data:%d \r", getPacketSeq(&incomingPacket));
             downNode = getDownNode(nodeInMap);
             int nextExpected = downNode->nextExpected;
-            if (getPacketSeq(&incomingPacket) != nextExpected && numMismatches < 3) {
+            if (getPacketSeq(&incomingPacket) != nextExpected) {
                 ACKrequest(&incomingPacket.src, nextExpected - 1);
-                numMismatches++;
+            //    numMismatches++;
                 downNode->numDataMisses = 0;
             }
             else if (getPacketSeq(&incomingPacket) == nextExpected) {
                 downNode->numDataMisses = 0;
-                numMismatches = 0;
+             //   numMismatches = 0;
                 processData(&incomingPacket, downNode->downJob);
                 downNode->nextExpected = getPacketSeq(&incomingPacket) + 1;
                 linkNode *curhead = downNode->hashhead;
