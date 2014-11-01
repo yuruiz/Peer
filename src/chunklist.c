@@ -112,12 +112,14 @@ char **retrieve_chunk_list(Packet *incomingPacket) {
 
     for (num_chunks = 0; num_chunks < getHashCount(incomingPacket); num_chunks++) {
         chunk_list[num_chunks] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
+        memset(chunk_list[num_chunks], 0, (SHA1_HASH_LENGTH * 2 + 1)* sizeof(char));
         head = num_chunks * SHA1_HASH_LENGTH;
         uint8_t buf[SHA1_HASH_LENGTH];
 
         strncpy((char*)buf, (const char*)incomingPacket->serial + HASH_OFFSET + head, SHA1_HASH_LENGTH);
 
         binary2hex(buf, SHA1_HASH_LENGTH, chunk_list[num_chunks]);
+        printf("retrieve: %s\n", chunk_list[num_chunks]);
     }
 
     return chunk_list;
