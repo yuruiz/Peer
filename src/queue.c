@@ -316,7 +316,7 @@ void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
         return;
     }
 
-    while (connNode->lastAck + connNode->windowSize > peekQueue(DataQueue)) {
+    while (connNode->lastAck + connNode->windowSize > connNode->lastSend) {
         queueNode *node = dequeue(DataQueue);
 
         if (node == NULL) {
