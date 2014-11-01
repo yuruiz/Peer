@@ -29,8 +29,11 @@ void shrinkWin(conn_peer *node){
     node->congestCtl = SLOW_START;
 
     printf("Now Shringking window size from %d to %d\n", node->windowSize, node->windowSize/2);
-    if (node->windowSize > 2) {
+    if (node->windowSize > 4) {
         node->ssthreshold = node->windowSize/2;
+    }
+    else{
+        node->ssthreshold = 2;
     }
     printf("The Slow Start Threshold is now %d\n", node->ssthreshold);
 
