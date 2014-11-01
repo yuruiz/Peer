@@ -154,6 +154,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
+            printf("receive data:%d \r", getPacketSeq(&incomingPacket));
             downNode = getDownNode(nodeInMap);
             int nextExpected = downNode->nextExpected;
             if (getPacketSeq(&incomingPacket) != nextExpected && numMismatches < 3) {
