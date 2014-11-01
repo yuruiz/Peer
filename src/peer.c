@@ -244,10 +244,10 @@ char **process_get(char *chunkfile, char *outputfile) {
 
     int i;
     for (i = 0; i < requestList.chunkNum; i++) {
-        char buf[50];
-        bzero(buf, 50);
+        char buf[2* SHA1_HASH_LENGTH+1];
+        bzero(buf, 2* SHA1_HASH_LENGTH+1);
         chunkline *line = &(requestList.list[i]);
-        binary2hex(line->hash, 20, buf);
+        binary2hex(line->hash, SHA1_HASH_LENGTH, buf);
         printf("%d: %s\n", line->seq, buf);
     }
 
