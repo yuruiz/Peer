@@ -5,7 +5,7 @@
 #include "peer.h"
 
 #define MAX_DUP_NUM 3
-#define INIT_THRESH 128
+#define INIT_THRESH 64
 
 typedef enum _congMode{
     SLOW_START, CONGEST_AVOID
