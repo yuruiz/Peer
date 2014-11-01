@@ -220,6 +220,11 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
 
         for (j = 0; j < hashCount; ++j) {
             insertHash(pkt, cklist->list[hashIndex].hash);
+            uint8_t buf[SHA1_HASH_LENGTH];
+            uint8_t buf1[2 * SHA1_HASH_LENGTH];
+            strncpy((char*)buf, cklist->list[hashIndex].hash, SHA1_HASH_LENGTH);
+            binary2hex(buf, SHA1_HASH_LENGTH, buf1);
+            printf("send: %s\n", buf1);
             hashIndex++;
         }
 
