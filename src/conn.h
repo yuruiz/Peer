@@ -13,7 +13,6 @@ typedef enum _congMode{
 
 typedef struct connpeer_t {
     int peerID;
-    int ackdup;
     int connected;
     int nextExpected;
     int downJob;
@@ -30,14 +29,18 @@ typedef struct connpeer_t {
     int lastAck;
     int ssthreshold;
     int roundInc;
+    int ackdup;
+    struct timeval ackArrive;
 
     struct connpeer_t* prev;
     struct connpeer_t* next;
 } conn_peer;
 
+conn_peer* getUpNodeHead();
 conn_peer* getUpNode(int nodeID);
 conn_peer* getDownNode(int nodeID);
 void removeDownNode(conn_peer *Node);
 conn_peer* buildDownNode(int nodeID, char **chunk_list, int size);
 void insertNewupNode(conn_peer *newNode);
+void removeUpNode(conn_peer *Node);
 #endif

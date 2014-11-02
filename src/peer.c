@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <curses.h>
 #include "debug.h"
 #include "spiffy.h"
 #include "bt_parse.h"
@@ -156,6 +155,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
+            printf("Received not confirmed packet %d\n", getPacketSeq(&incomingPacket));
             downNode = getDownNode(nodeInMap);
             if (downNode == NULL) {
                 break;
@@ -163,13 +163,11 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             int nextExpected = downNode->nextExpected;
             if (getPacketSeq(&incomingPacket) != nextExpected) {
                 ACKrequest(&incomingPacket.src, nextExpected - 1);
-//                numMismatches++;
                 downNode->numDataMisses = 0;
             }
             else if (getPacketSeq(&incomingPacket) == nextExpected) {
                 downNode->numDataMisses = 0;
                 printf("Received Packet %d\n", nextExpected);
-//                numMismatches = 0;
                 processData(&incomingPacket, downNode->downJob);
                 downNode->nextExpected = getPacketSeq(&incomingPacket) + 1;
                 linkNode *curhead = downNode->hashhead;
@@ -206,7 +204,9 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
             AckQueueProcess(&incomingPacket, nodeInMap);
 
-            flushDataQueue(nodeInMap, upNode, &incomingPacket.src);
+            if (upNode->ackdup < MAX_DUP_NUM) {
+                flushDataQueue(nodeInMap, upNode, &incomingPacket.src);
+            }
             break;
         case 5:
             break;
@@ -324,8 +324,8 @@ void peer_run(bt_config_t *config) {
         FD_SET(STDIN_FILENO, &readfds);
         FD_SET(sock, &readfds);
 
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 500;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
 
         nfds = select(sock + 1, &readfds, NULL, NULL, &timeout);
 
@@ -340,6 +340,9 @@ void peer_run(bt_config_t *config) {
         }
 
         flushTimeoutAck();
+        if (nfds == 0) {
+            flushDupACK();
+        }
     }
 }
 
