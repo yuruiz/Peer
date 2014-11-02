@@ -23,6 +23,9 @@ typedef struct connpeer_t {
     linkNode *hashhead;
     int down_chunkID;
 
+    /*Up Node*/
+    int sentSize;
+
     /*Down Node*/
     int receivedSize;
 

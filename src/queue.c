@@ -6,6 +6,7 @@
 #include "queue.h"
 #include "spiffy.h"
 #include "congest.h"
+#include "chunk.h"
 
 /*Data Queues Link list*/
 static queue* DataQueueList_head = NULL;
@@ -475,7 +476,7 @@ void AckQueueProcess(Packet *packet, int peerID){
             expandWin(upNode);
         }
 
-        if (ack == CHUNK_SIZE) {
+        if (ack == (BT_CHUNK_SIZE + PACKET_DATA_SIZE - 1) / PACKET_DATA_SIZE) {
             printf("Data transmisstion finished\n");
             removeDataQueue(findDataQueue(peerID));
             removeAckQueue(findAckQueue(peerID));

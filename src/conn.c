@@ -22,6 +22,7 @@ conn_peer* buildUpNode(int nodeID){
     upNode->prev = NULL;
     upNode->next = NULL;
     upNode->hashhead = NULL;
+    upNode->sentSize = 0;
 
 
     /*Initialize Congestion Control*/

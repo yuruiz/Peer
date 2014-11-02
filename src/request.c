@@ -166,7 +166,7 @@ Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config, str
     incPacketSize(newPacket, size);
     setPacketSeq(newPacket, seq);
 
-    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * DATA_SIZE;
+    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * PACKET_DATA_SIZE;
 
     char* masterfile = config->master_data_file;
 
@@ -284,13 +284,19 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
         return;
     }
 
-    int numPacket = BT_CHUNK_SIZE / DATA_SIZE;
+    int numPacket = (BT_CHUNK_SIZE + PACKET_DATA_SIZE - 1) / PACKET_DATA_SIZE;
 
     int i;
 
     for (i = 0; i < numPacket; ++i) {
         Packet *newPacket;
-        newPacket = buildDataPacket(i + 1, hashIndex, DATA_SIZE, config, &request->src);
+        if (i < numPacket - 1) {
+            newPacket = buildDataPacket(i + 1, hashIndex, PACKET_DATA_SIZE, config, &request->src);
+        }
+        else{
+            newPacket = buildDataPacket(i + 1, hashIndex, BT_CHUNK_SIZE % PACKET_DATA_SIZE, config, &request->src);
+        }
+
         if (newPacket == NULL) {
             return;
         }
