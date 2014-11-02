@@ -158,7 +158,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            printf("receive data:%d \r", getPacketSeq(&incomingPacket));
+            printf("receive data:%d\n", getPacketSeq(&incomingPacket));
             downNode = getDownNode(nodeInMap);
             if (downNode == NULL) {
                 break;
@@ -166,13 +166,45 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             int nextExpected = downNode->nextExpected;
             if (getPacketSeq(&incomingPacket) != nextExpected) {
                 ACKrequest(&incomingPacket.src, nextExpected - 1);
+                Packet *newPkt = malloc(sizeof(Packet));
+
+                memcpy(newPkt, &incomingPacket, sizeof(Packet));
+
+                enUnCfPktQueue(newPkt, nodeInMap);
                 downNode->numDataMisses = 0;
             }
             else if (getPacketSeq(&incomingPacket) == nextExpected) {
                 downNode->numDataMisses = 0;
                 printf("Received Packet %d\n", nextExpected);
                 processData(&incomingPacket, downNode->downJob);
+
+                queue *UnCFQueue = findUnCfPktQueue(nodeInMap);
+
                 downNode->nextExpected = getPacketSeq(&incomingPacket) + 1;
+
+                if (UnCFQueue != NULL) {
+
+                    while (peekQueue(UnCFQueue) > 0 && peekQueue(UnCFQueue) <= downNode->nextExpected) {
+
+                        queueNode *nextNode = dequeue(UnCFQueue);
+
+                        if (nextNode == NULL) {
+                            break;
+                        }
+
+                        if (nextNode->seq == downNode->nextExpected) {
+                            processData(nextNode->pkt, downNode->downJob);
+                            printf("get data seq %d\n", downNode->nextExpected);
+                            downNode->nextExpected++;
+                        }
+
+                        free(nextNode->pkt);
+                        free(nextNode);
+                    }
+                }
+
+                ACKrequest(&incomingPacket.src, downNode->nextExpected-1);
+
                 linkNode *curhead = downNode->hashhead;
 
                 if (curhead == NULL) {
@@ -180,14 +212,14 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                     break;
                 }
 
-                if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next != NULL) {
+                if (downNode->nextExpected - 1 == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next != NULL) {
                     printf("Got %s\n", curhead->chunkHash);
                     linkNode *temp = curhead;
                     downNode->hashhead = curhead->next;
                     free(temp);
                     GetRequest(nodeInMap, &incomingPacket.src);
                 }
-                else if (getPacketSeq(&incomingPacket) == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
+                else if (downNode->nextExpected - 1 == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
                     removeDownNode(downNode);
                     downNode->numDataMisses = -1;
                     if (list_empty() == EXIT_SUCCESS) {
@@ -383,8 +415,6 @@ void processData(Packet *incomingPacket, int downJob) {
     fseek(outfile, offset, SEEK_SET);
     fwrite(incomingPacket->serial + DATA_OFFSET, sizeof(char), DATA_SIZE, outfile);
     fclose(outfile);
-
-    ACKrequest(&incomingPacket->src, getPacketSeq(incomingPacket));
 }
 
 void decreseConn() {

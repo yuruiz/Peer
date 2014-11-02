@@ -2,25 +2,47 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include "queue.h"
 #include "spiffy.h"
-#include "conn.h"
-#include "peer.h"
 #include "congest.h"
 
-
+/*Data Queues Link list*/
 static queue* DataQueueList_head = NULL;
 static queue* DataQueueList_tail = NULL;
 
+/*Ack Queue Link List*/
 static queue* AckQueueList_head = NULL;
 static queue* AckQueueList_tail = NULL;
 
-queue* findDataQueue(int peerID) {
+/*Packets Received Out of Order Linked List*/
+static queue* UnCfPktQueueList_head = NULL;
+static queue* UnCfPktQueueList_tail = NULL;
+
+
+queue *findUnCfPktQueue(int peerID) {
+    if (UnCfPktQueueList_head == NULL) {
+        return NULL;
+    }
+
+    queue *cur = UnCfPktQueueList_head;
+
+    while (cur != NULL) {
+        if (cur->peerID == peerID) {
+            return cur;
+        }
+        cur = cur->next;
+    }
+
+    return NULL;
+}
+
+queue *findDataQueue(int peerID) {
     if (DataQueueList_head == NULL) {
         return NULL;
     }
 
-    queue* cur = DataQueueList_head;
+    queue *cur = DataQueueList_head;
 
     while (cur != NULL) {
         if (cur->peerID == peerID) {
@@ -55,6 +77,19 @@ queue* findAckQueue(int peerID) {
     return NULL;
 }
 
+void insertUnCfPktQueue(queue *newQueue) {
+    if (UnCfPktQueueList_head == NULL) {
+        UnCfPktQueueList_head = newQueue;
+        UnCfPktQueueList_tail = newQueue;
+        return;
+    }
+
+    UnCfPktQueueList_tail->next = newQueue;
+    newQueue->prev = UnCfPktQueueList_tail;
+    UnCfPktQueueList_tail = newQueue;
+
+    return;
+}
 
 void insertDataQueue(queue *newQueue) {
     if (DataQueueList_head == NULL) {
@@ -130,6 +165,30 @@ void removeAckQueue(queue *Queue) {
     }
     else{
         AckQueueList_tail = Queue->prev;
+    }
+
+    if (Queue->head != NULL) {
+
+    }
+
+    clearqueue(Queue);
+    free(Queue);
+}
+
+void removeUnCfPktQueue(queue *Queue) {
+
+    if (Queue->prev != NULL) {
+        Queue->prev->next = Queue->next;
+    }
+    else{
+        UnCfPktQueueList_head = Queue->next;
+    }
+
+    if (Queue->next != NULL) {
+        Queue->next->prev = Queue->prev;
+    }
+    else{
+        UnCfPktQueueList_tail = Queue->prev;
     }
 
     if (Queue->head != NULL) {
@@ -309,6 +368,32 @@ void enDataQueue(Packet* pkt, int peerID) {
     return;
 }
 
+void enUnCfPktQueue(Packet* pkt, int peerID){
+
+    queue*PktQueue = findUnCfPktQueue(peerID);
+
+    if (PktQueue == NULL) {
+        PktQueue = malloc(sizeof(queue));
+        PktQueue->peerID = peerID;
+        PktQueue->prev = NULL;
+        PktQueue->next = NULL;
+        PktQueue->head = NULL;
+        PktQueue->tail = NULL;
+
+        insertUnCfPktQueue(PktQueue);
+    }
+
+    queueNode *newNode = malloc(sizeof(queueNode));
+
+    newNode->next = NULL;
+    newNode->prev = NULL;
+    newNode->pkt = pkt;
+    newNode->seq = getPacketSeq(pkt);
+
+    enqueue(PktQueue, newNode);
+    return;
+}
+
 void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
     queue *DataQueue = findDataQueue(peerID);
 
@@ -318,6 +403,13 @@ void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
 
     while (connNode->lastAck + connNode->windowSize > connNode->lastSend) {
         queueNode *node = dequeue(DataQueue);
+
+        while (node != NULL && connNode->lastAck >= node->seq) {
+            free(node->pkt);
+            free(node);
+
+            node = dequeue(DataQueue);
+        }
 
         if (node == NULL) {
             return;

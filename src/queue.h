@@ -21,7 +21,11 @@ typedef struct queue_t{
 }queue;
 
 void clearqueue(queue *q);
+queueNode* dequeue(queue* q);
 void enDataQueue(Packet* pkt, int peerID);
+void enUnCfPktQueue(Packet* pkt, int peerID);
+queue *findUnCfPktQueue(int peerID);
+int peekQueue(queue *q);
 void AckQueueProcess(Packet *packet, int peerID);
 void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from);
 void flushTimeoutAck();
