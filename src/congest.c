@@ -1,6 +1,18 @@
+#include <string.h>
 #include "congest.h"
+#include "peer.h"
+
+#define CONGEST_OUTPUT_FILE "problem2-peer.txt"
 
 void expandWin(conn_peer *node) {
+
+    FILE *output = fopen(CONGEST_OUTPUT_FILE, "a");
+
+    struct timeval curT;
+    char linebuf[200];
+    memset(linebuf, 0, 200 * sizeof(char));
+
+    gettimeofday(&curT, NULL);
 
     switch (node->congestCtl) {
         case SLOW_START:
@@ -22,6 +34,12 @@ void expandWin(conn_peer *node) {
             printf("Expand windows error! Unknown congestion control mode!\n");
             break;
     }
+
+    printf("Start time: %d, current time: %d\n", getStartTime(), curT.tv_sec);
+    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, curT.tv_sec - getStartTime(), node->windowSize);
+    fwrite(linebuf, sizeof(char), strlen(linebuf), output);
+    fclose(output);
+
 }
 
 

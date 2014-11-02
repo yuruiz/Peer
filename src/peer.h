@@ -38,4 +38,5 @@ void increaseConn();
 void decreseConn();
 int getTimeout();
 void setTimeout(int timeout);
+int getStartTime();
 #endif /* _PEER_H_ */

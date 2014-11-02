@@ -33,6 +33,8 @@
 
 /* time out */
 struct timeval startTime;
+
+static int startsecond;
 //int TTL[BT_MAX_PEERS][CHUNK_SIZE]; // DATA timeout
 //int GETTTL[BT_MAX_PEERS]; // GET timeout
 
@@ -398,11 +400,21 @@ void increaseConn() {
     }
 }
 
+int getStartTime(){
+    return startsecond;
+}
+
 int main(int argc, char **argv) {
     bt_config_t config;
 
+    gettimeofday(&startTime, NULL);
+
+    startsecond = startTime.tv_sec;
+
+    printf("%d\n", startsecond);
+
     bt_init(&config, argc, argv);
-    peer_init();
+//    peer_init();
 
     DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
 
