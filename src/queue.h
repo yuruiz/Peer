@@ -25,5 +25,6 @@ void enDataQueue(Packet* pkt, int peerID);
 void AckQueueProcess(Packet *packet, int peerID);
 void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from);
 void flushTimeoutAck();
+void flushDupACK();
 
 #endif

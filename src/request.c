@@ -186,7 +186,7 @@ Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config, str
         return NULL;
     }
 
-    printf("new packet size %d\n", getPacketSize(newPacket));
+//    printf("new packet size %d\n", getPacketSize(newPacket));
 
     fclose(mastfptr);
 

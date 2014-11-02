@@ -316,7 +316,7 @@ void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
         return;
     }
 
-    while (connNode->lastAck + connNode->windowSize > peekQueue(DataQueue)) {
+    while (connNode->lastAck + connNode->windowSize > connNode->lastSend) {
         queueNode *node = dequeue(DataQueue);
 
         if (node == NULL) {
@@ -358,7 +358,10 @@ void AckQueueProcess(Packet *packet, int peerID){
         return;
     }
 
-//    printf("receive ack %d\n", ack);
+    printf("receive ack %d, oldest ACK %d\n", ack, oldestSeq);
+
+    gettimeofday(&(upNode->ackArrive), NULL);
+
     if (ack >= oldestSeq) {
         upNode->ackdup = 0;
         upNode->lastAck = ack;
@@ -373,9 +376,6 @@ void AckQueueProcess(Packet *packet, int peerID){
                 int prevTimout = getTimeout();
                 int curTimeout = (2 * (int)(curT.tv_sec - temp->pkt->timestamp.tv_sec) + prevTimout / 2);
                 setTimeout(curTimeout);
-
-//                printf("Current Time out is %d\n", curTimeout);
-//                printf("Previous Time out is %d\n", prevTimout);
             }
             free(temp->pkt);
             free(temp);
@@ -388,6 +388,12 @@ void AckQueueProcess(Packet *packet, int peerID){
             removeDataQueue(findDataQueue(peerID));
             removeAckQueue(findAckQueue(peerID));
 
+            /*Reinitalize the Upnode*/
+            upNode->ackdup = 0;
+            upNode->hashhead = NULL;
+            upNode->lastAck = 0;
+            upNode->lastSend = 0;
+
         }
     }else {
         if (ack == upNode->lastAck) {
@@ -396,7 +402,9 @@ void AckQueueProcess(Packet *packet, int peerID){
 
             if (upNode->ackdup >= MAX_DUP_NUM) {
                 printf("%d duplicate Ack %d received\n", MAX_DUP_NUM, ack);
-                upNode->ackdup = 0;
+
+                struct timeval curT;
+                gettimeofday(&curT, NULL);
 
                 queue *DataQueue = findDataQueue(peerID);
 
@@ -414,6 +422,32 @@ void AckQueueProcess(Packet *packet, int peerID){
     }
 
     return;
+}
+
+
+void flushDupACK(){
+    conn_peer* cur = getUpNodeHead();
+
+    while (cur != NULL) {
+        printf("Node ID: %d, last ACK: %d, Dup: %d\n", cur->peerID, cur->lastAck,cur->ackdup);
+        if (cur->ackdup >= MAX_DUP_NUM) {
+            struct timeval curT;
+
+            gettimeofday(&curT, NULL);
+
+            if (curT.tv_sec - cur->ackArrive.tv_sec > 1) {
+                cur->ackdup = 0;
+                queue *q = findDataQueue(cur->peerID);
+
+                if (q != NULL && q->head != NULL) {
+                    Packet *pkt = q->head->pkt;
+                    flushDataQueue(cur->peerID, cur, &pkt->src);
+
+                }
+            }
+        }
+        cur = cur->next;
+    }
 }
 
 void flushTimeoutAck(){
@@ -448,7 +482,10 @@ void flushTimeoutAck(){
 
             upnode->lastSend = peekQueue(cur);
 
-            flushDataQueue(cur->peerID, upnode, &pkt->src);
+            if (upnode->ackdup < MAX_DUP_NUM) {
+                flushDataQueue(cur->peerID, upnode, &pkt->src);
+            }
+
         }
         cur = cur->next;
 

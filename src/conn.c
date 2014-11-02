@@ -55,6 +55,10 @@ conn_peer* getUpNode(int nodeID) {
     return buildUpNode(nodeID);
 }
 
+conn_peer* getUpNodeHead() {
+    return uploadlist_head;
+}
+
 void insertNewupNode(conn_peer *newNode) {
     if (uploadlist_head == NULL) {
         uploadlist_head = newNode;
@@ -93,6 +97,27 @@ void removeDownNode(conn_peer *Node) {
 
     if (Node->next == NULL) {
         downloadlist_tail = Node->prev;
+    }
+    else{
+        Node->next->prev = Node->prev;
+    }
+
+    free(Node);
+
+    return;
+}
+
+
+void removeUpNode(conn_peer *Node) {
+    if (Node->prev == NULL) {
+        uploadlist_head = Node->next;
+    }
+    else{
+        Node->prev->next = Node->next;
+    }
+
+    if (Node->next == NULL) {
+        uploadlist_tail = Node->prev;
     }
     else{
         Node->next->prev = Node->prev;
