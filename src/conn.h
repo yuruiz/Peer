@@ -20,6 +20,7 @@ typedef struct connpeer_t {
     int numGetMisses;
     int numDataMisses;
     int TTL[CHUNK_SIZE];
+    size_t data_length;
     linkNode* hashhead;
     int down_chunkID;
 
