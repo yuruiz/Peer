@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include "debug.h"
 #include "spiffy.h"
 #include "bt_parse.h"
@@ -175,8 +176,8 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             }
             else if (getPacketSeq(&incomingPacket) == nextExpected) {
                 downNode->numDataMisses = 0;
-                printf("Received Packet %d\n", nextExpected);
                 processData(&incomingPacket, downNode->downJob, nodeInMap);
+                printf("Received Packet %d\n", nextExpected);
 
                 queue *UnCFQueue = findUnCfPktQueue(nodeInMap);
 
@@ -203,7 +204,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                     }
                 }
 
-                ACKrequest(&incomingPacket.src, downNode->nextExpected-1);
+                ACKrequest(&incomingPacket.src, downNode->nextExpected - 1);
 
                 linkNode *curhead = downNode->hashhead;
 
@@ -213,15 +214,26 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 }
 
                 if (downNode->receivedSize == BT_CHUNK_SIZE) {
-                    if(curhead->next != NULL){
+                    FILE *outfile;
+                    outfile = fopen(outf, "r+b");
+
+                    // look for position to insert a data chunk
+                    long int offset = BT_CHUNK_SIZE * downNode->downJob;
+                    fseek(outfile, offset, SEEK_SET);
+                    fwrite(downNode->buffer, sizeof(char), BT_CHUNK_SIZE, outfile);
+                    fclose(outfile);
+
+                    if (curhead->next != NULL) {
                         printf("Got %s\n", curhead->chunkHash);
                         linkNode *temp = curhead;
                         downNode->hashhead = curhead->next;
                         downNode->receivedSize = 0;
+                        memset(downNode->buffer, 0, sizeof(char) * BT_CHUNK_SIZE);
                         free(temp);
                         GetRequest(nodeInMap, &incomingPacket.src);
                     }
                     else if (curhead->next == NULL) {
+                        free(downNode->buffer);
                         removeDownNode(downNode);
                         downNode->numDataMisses = -1;
                         if (list_empty() == EXIT_SUCCESS) {
@@ -285,8 +297,8 @@ char **process_get(char *chunkfile, char *outputfile) {
 
     int i;
     for (i = 0; i < requestList.chunkNum; i++) {
-        char buf[2* SHA1_HASH_LENGTH+1];
-        bzero(buf, 2* SHA1_HASH_LENGTH+1);
+        char buf[2 * SHA1_HASH_LENGTH + 1];
+        bzero(buf, 2 * SHA1_HASH_LENGTH + 1);
         chunkline *line = &(requestList.list[i]);
         binary2hex(line->hash, SHA1_HASH_LENGTH, buf);
         printf("%d: %s\n", line->seq, buf);
@@ -390,11 +402,11 @@ int getSock() {
 }
 
 
-void setTimeout(int timeout){
+void setTimeout(int timeout) {
     Timeout = timeout;
 }
 
-int getTimeout(){
+int getTimeout() {
     return Timeout;
 }
 
@@ -409,17 +421,10 @@ void free_chunks(char **chunks, int size) {
 
 // put received data into outputfile
 void processData(Packet *incomingPacket, int downJob, int peerID) {
-    FILE *outfile;
     conn_peer *node = getDownNode(peerID);
-    outfile = fopen(outf, "r+b");
     int PayloadLen = getPacketSize(incomingPacket) - DATA_OFFSET;
 
-    // look for position to insert a data chunk
-    long int offset = CHUNK_SIZE * DATA_SIZE * downJob + node->receivedSize;
-    fseek(outfile, offset, SEEK_SET);
-    fwrite(incomingPacket->serial + DATA_OFFSET, sizeof(char), PayloadLen, outfile);
-    fclose(outfile);
-
+    memcpy(node->buffer + node->receivedSize, incomingPacket->serial + DATA_OFFSET, PayloadLen);
     node->receivedSize += PayloadLen;
 }
 
@@ -436,7 +441,7 @@ void increaseConn() {
     }
 }
 
-int getStartTime(){
+int getStartTime() {
     return startsecond;
 }
 

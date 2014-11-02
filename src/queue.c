@@ -486,6 +486,7 @@ void AckQueueProcess(Packet *packet, int peerID){
             upNode->hashhead = NULL;
             upNode->lastAck = 0;
             upNode->lastSend = 0;
+            decreseConn();
 
         }
     }else {
@@ -564,7 +565,7 @@ void flushTimeoutAck(){
         }
 
         if (curT.tv_sec - pkt->timestamp.tv_sec > curTime) {
-            printf("Packet %d time out\n", getPacketSeq(pkt));
+//            printf("Packet %d time out\n", getPacketSeq(pkt));
             conn_peer *upnode = getUpNode(cur->peerID);
 
 

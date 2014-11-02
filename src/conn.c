@@ -4,6 +4,7 @@
 #include "peer.h"
 #include "conn.h"
 #include "request.h"
+#include "chunk.h"
 
 
 static conn_peer *uploadlist_head = NULL;
@@ -139,6 +140,8 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     DownNode->nextExpected = -1;
     DownNode->downJob = -1;
     DownNode->receivedSize = 0;
+    DownNode->buffer = malloc(sizeof(char) * BT_CHUNK_SIZE);
+    memset(DownNode->buffer, 0, sizeof(char) * BT_CHUNK_SIZE);
 
     int i;
     linkNode* curNode;

@@ -28,6 +28,7 @@ typedef struct connpeer_t {
 
     /*Down Node*/
     int receivedSize;
+    char* buffer;
 
     /*Congestion Control*/
     mode congestCtl;

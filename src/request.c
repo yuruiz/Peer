@@ -365,6 +365,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
 
     // jobs[nodeID] = getHashIndex(hashNode->chunkHash, haschunklist);
     node->downJob = index;
+
 //
 //    printf("Requesting chunk ID: %d from %d\n", jobs[nodeID], nodeID);
 
