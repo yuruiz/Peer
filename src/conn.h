@@ -20,8 +20,11 @@ typedef struct connpeer_t {
     int numDataMisses;
     int TTL[CHUNK_SIZE];
     size_t data_length;
-    linkNode* hashhead;
+    linkNode *hashhead;
     int down_chunkID;
+
+    /*Down Node*/
+    int receivedSize;
 
     /*Congestion Control*/
     mode congestCtl;
@@ -33,8 +36,8 @@ typedef struct connpeer_t {
     int ackdup;
     struct timeval ackArrive;
 
-    struct connpeer_t* prev;
-    struct connpeer_t* next;
+    struct connpeer_t *prev;
+    struct connpeer_t *next;
 } conn_peer;
 
 conn_peer* getUpNodeHead();

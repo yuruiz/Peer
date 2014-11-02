@@ -32,7 +32,7 @@ typedef struct command
 
 void free_chunks(char **chunks, int size);
 int getSock();
-void processData(Packet *incomingPacket, int downJob);
+void processData(Packet *incomingPacket, int downJob, int peerID);
 void peer_init();
 void increaseConn();
 void decreseConn();

@@ -176,7 +176,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             else if (getPacketSeq(&incomingPacket) == nextExpected) {
                 downNode->numDataMisses = 0;
                 printf("Received Packet %d\n", nextExpected);
-                processData(&incomingPacket, downNode->downJob);
+                processData(&incomingPacket, downNode->downJob, nodeInMap);
 
                 queue *UnCFQueue = findUnCfPktQueue(nodeInMap);
 
@@ -193,7 +193,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                         }
 
                         if (nextNode->seq == downNode->nextExpected) {
-                            processData(nextNode->pkt, downNode->downJob);
+                            processData(nextNode->pkt, downNode->downJob, nodeInMap);
                             printf("get data seq %d\n", downNode->nextExpected);
                             downNode->nextExpected++;
                         }
@@ -212,19 +212,22 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                     break;
                 }
 
-                if (downNode->nextExpected - 1 == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next != NULL) {
-                    printf("Got %s\n", curhead->chunkHash);
-                    linkNode *temp = curhead;
-                    downNode->hashhead = curhead->next;
-                    free(temp);
-                    GetRequest(nodeInMap, &incomingPacket.src);
-                }
-                else if (downNode->nextExpected - 1 == (BT_CHUNK_SIZE / DATA_SIZE) && curhead->next == NULL) {
-                    removeDownNode(downNode);
-                    downNode->numDataMisses = -1;
-                    if (list_empty() == EXIT_SUCCESS) {
-                        free(request_queue);
-                        printf("JOB is done\n");
+                if (downNode->receivedSize == BT_CHUNK_SIZE) {
+                    if(curhead->next != NULL){
+                        printf("Got %s\n", curhead->chunkHash);
+                        linkNode *temp = curhead;
+                        downNode->hashhead = curhead->next;
+                        downNode->receivedSize = 0;
+                        free(temp);
+                        GetRequest(nodeInMap, &incomingPacket.src);
+                    }
+                    else if (curhead->next == NULL) {
+                        removeDownNode(downNode);
+                        downNode->numDataMisses = -1;
+                        if (list_empty() == EXIT_SUCCESS) {
+                            free(request_queue);
+                            printf("JOB is done\n");
+                        }
                     }
                 }
             }
@@ -405,16 +408,19 @@ void free_chunks(char **chunks, int size) {
 }
 
 // put received data into outputfile
-void processData(Packet *incomingPacket, int downJob) {
+void processData(Packet *incomingPacket, int downJob, int peerID) {
     FILE *outfile;
+    conn_peer *node = getDownNode(peerID);
     outfile = fopen(outf, "r+b");
+    int PayloadLen = getPacketSize(incomingPacket) - DATA_OFFSET;
 
     // look for position to insert a data chunk
-    long int offset = CHUNK_SIZE * DATA_SIZE * downJob
-            + DATA_SIZE * (getPacketSeq(incomingPacket) - 1);
+    long int offset = CHUNK_SIZE * DATA_SIZE * downJob + node->receivedSize;
     fseek(outfile, offset, SEEK_SET);
-    fwrite(incomingPacket->serial + DATA_OFFSET, sizeof(char), DATA_SIZE, outfile);
+    fwrite(incomingPacket->serial + DATA_OFFSET, sizeof(char), PayloadLen, outfile);
     fclose(outfile);
+
+    node->receivedSize += PayloadLen;
 }
 
 void decreseConn() {
