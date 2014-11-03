@@ -19,7 +19,6 @@ conn_peer* buildUpNode(int nodeID){
     upNode->peerID = nodeID;
     upNode->connected = 0;
     upNode->ackdup = 0;
-    upNode->down_chunkID = 0;
     upNode->prev = NULL;
     upNode->next = NULL;
     upNode->hashhead = NULL;
@@ -59,6 +58,10 @@ conn_peer* getUpNode(int nodeID) {
 
 conn_peer* getUpNodeHead() {
     return uploadlist_head;
+}
+
+conn_peer* getDownNodeHead() {
+    return downloadlist_head;
 }
 
 void insertNewupNode(conn_peer *newNode) {
@@ -142,6 +145,8 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     DownNode->receivedSize = 0;
     DownNode->buffer = malloc(sizeof(char) * BT_CHUNK_SIZE);
     memset(DownNode->buffer, 0, sizeof(char) * BT_CHUNK_SIZE);
+
+    gettimeofday(&DownNode->pktArrive, NULL);
 
     int i;
     linkNode* curNode;

@@ -6,18 +6,19 @@
 #include "spiffy.h"
 #include "congest.h"
 #include "chunk.h"
+#include "chunklist.h"
 
 /*Data Queues Link list*/
-static queue* DataQueueList_head = NULL;
-static queue* DataQueueList_tail = NULL;
+static queue *DataQueueList_head = NULL;
+static queue *DataQueueList_tail = NULL;
 
 /*Ack Queue Link List*/
-static queue* AckQueueList_head = NULL;
-static queue* AckQueueList_tail = NULL;
+static queue *AckQueueList_head = NULL;
+static queue *AckQueueList_tail = NULL;
 
 /*Packets Received Out of Order Linked List*/
-static queue* UnCfPktQueueList_head = NULL;
-static queue* UnCfPktQueueList_tail = NULL;
+static queue *UnCfPktQueueList_head = NULL;
+static queue *UnCfPktQueueList_tail = NULL;
 
 
 queue *findUnCfPktQueue(int peerID) {
@@ -55,16 +56,16 @@ queue *findDataQueue(int peerID) {
     return NULL;
 }
 
-queue* getAckQueueHead(){
+queue *getAckQueueHead() {
     return AckQueueList_head;
 }
 
-queue* findAckQueue(int peerID) {
+queue *findAckQueue(int peerID) {
     if (AckQueueList_head == NULL) {
         return NULL;
     }
 
-    queue* cur = AckQueueList_head;
+    queue *cur = AckQueueList_head;
 
     while (cur != NULL) {
         if (cur->peerID == peerID) {
@@ -124,14 +125,14 @@ void removeDataQueue(queue *Queue) {
     if (Queue->prev != NULL) {
         Queue->prev->next = Queue->next;
     }
-    else{
+    else {
         DataQueueList_head = Queue->next;
     }
 
     if (Queue->next != NULL) {
         Queue->next->prev = Queue->prev;
     }
-    else{
+    else {
         DataQueueList_tail = Queue->prev;
     }
 
@@ -156,14 +157,14 @@ void removeAckQueue(queue *Queue) {
     if (Queue->prev != NULL) {
         Queue->prev->next = Queue->next;
     }
-    else{
+    else {
         AckQueueList_head = Queue->next;
     }
 
     if (Queue->next != NULL) {
         Queue->next->prev = Queue->prev;
     }
-    else{
+    else {
         AckQueueList_tail = Queue->prev;
     }
 
@@ -180,14 +181,14 @@ void removeUnCfPktQueue(queue *Queue) {
     if (Queue->prev != NULL) {
         Queue->prev->next = Queue->next;
     }
-    else{
+    else {
         UnCfPktQueueList_head = Queue->next;
     }
 
     if (Queue->next != NULL) {
         Queue->next->prev = Queue->prev;
     }
-    else{
+    else {
         UnCfPktQueueList_tail = Queue->prev;
     }
 
@@ -205,17 +206,17 @@ void clearqueue(queue *q) {
         return;
     }
 
-    queueNode* cur = q->head;
+    queueNode *cur = q->head;
 
     while (cur != NULL) {
-        queueNode* temp = cur;
+        queueNode *temp = cur;
         cur = cur->next;
         free(temp);
     }
 }
 
 
-int removeQueueNode(queue *q, int seq){
+int removeQueueNode(queue *q, int seq) {
     if (q->head == NULL) {
         return -1;
     }
@@ -227,14 +228,14 @@ int removeQueueNode(queue *q, int seq){
             if (cur->prev != NULL) {
                 cur->prev->next = cur->next;
             }
-            else{
+            else {
                 q->head = cur->next;
             }
 
             if (cur->next != NULL) {
                 cur->next->prev = cur->prev;
             }
-            else{
+            else {
                 q->tail = cur->prev;
             }
 
@@ -261,7 +262,7 @@ void enqueue(queue *q, queueNode *node) {
     return;
 }
 
-queueNode* getQueueNodebySeq(queue* q, int seq) {
+queueNode *getQueueNodebySeq(queue *q, int seq) {
     if (q->head == NULL) {
         return NULL;
     }
@@ -279,24 +280,24 @@ queueNode* getQueueNodebySeq(queue* q, int seq) {
     return NULL;
 }
 
-queueNode* dequeue(queue* q) {
+queueNode *dequeue(queue *q) {
     if (q->head == NULL) {
         return NULL;
     }
 
-    queueNode* retNode = q->head;
+    queueNode *retNode = q->head;
     q->head = q->head->next;
 
     if (q->head != NULL) {
         q->head->prev = NULL;
-    }else{
+    } else {
         q->tail = NULL;
     }
     retNode->next = NULL;
     return retNode;
 }
 
-int mergeQueue(queue* head, queue *end) {
+int mergeQueue(queue *head, queue *end) {
     if (head == NULL || end == NULL || head->head == NULL) {
         return -1;
     }
@@ -305,7 +306,7 @@ int mergeQueue(queue* head, queue *end) {
         end->head = head->head;
         end->tail = head->tail;
     }
-    else{
+    else {
         head->tail->next = end->head;
         end->head = head->head;
     }
@@ -316,9 +317,9 @@ int mergeQueue(queue* head, queue *end) {
     return 0;
 }
 
-void enAckQueue(Packet* pkt, int peerID){
+void enAckQueue(Packet *pkt, int peerID) {
 
-    queue* AckQueue = findAckQueue(peerID);
+    queue *AckQueue = findAckQueue(peerID);
 
     if (AckQueue == NULL) {
         AckQueue = malloc(sizeof(queue));
@@ -342,9 +343,9 @@ void enAckQueue(Packet* pkt, int peerID){
     return;
 }
 
-void enDataQueue(Packet* pkt, int peerID) {
+void enDataQueue(Packet *pkt, int peerID) {
 
-    queue* DataQueue = findDataQueue(peerID);
+    queue *DataQueue = findDataQueue(peerID);
 
     if (DataQueue == NULL) {
         DataQueue = malloc(sizeof(queue));
@@ -368,9 +369,9 @@ void enDataQueue(Packet* pkt, int peerID) {
     return;
 }
 
-void enUnCfPktQueue(Packet* pkt, int peerID){
+void enUnCfPktQueue(Packet *pkt, int peerID) {
 
-    queue*PktQueue = findUnCfPktQueue(peerID);
+    queue *PktQueue = findUnCfPktQueue(peerID);
 
     if (PktQueue == NULL) {
         PktQueue = malloc(sizeof(queue));
@@ -394,7 +395,7 @@ void enUnCfPktQueue(Packet* pkt, int peerID){
     return;
 }
 
-void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
+void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from) {
     queue *DataQueue = findDataQueue(peerID);
 
     if (DataQueue == NULL) {
@@ -415,24 +416,23 @@ void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from){
             return;
         }
 
-        Packet* pkt = node->pkt;
-        if(spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *)from, sizeof(*from)) > 0){
+        Packet *pkt = node->pkt;
+        if (spiffy_sendto(getSock(), pkt->serial, getPacketSize(pkt), 0, (struct sockaddr *) from, sizeof(*from)) > 0) {
             printf("Send Data request success. seq %d size: %d\n", getPacketSeq(pkt), getPacketSize(pkt));
             gettimeofday(&pkt->timestamp, NULL);
             connNode->lastSend = getPacketSeq(pkt);
             enAckQueue(pkt, peerID);
             free(node);
-        }else{
+        } else {
             fprintf(stderr, "send Data packet failed\n");
             enqueue(DataQueue, node);
         }
     }
 }
 
-void AckQueueProcess(Packet *packet, int peerID){
+void AckQueueProcess(Packet *packet, int peerID) {
     queue *AckQueue = findAckQueue(peerID);
-    conn_peer* upNode = getUpNode(peerID);
-    int oldestSeq;
+    conn_peer *upNode = getUpNode(peerID);
     int ack = getPacketACK(packet);
 
     if (AckQueue == NULL) {
@@ -445,14 +445,9 @@ void AckQueueProcess(Packet *packet, int peerID){
         return;
     }
 
-//    if((oldestSeq = peekQueue(AckQueue)) < 0){
-//        /*AckQueue is empty*/
-//        return;
-//    }
-
     printf("receive ack %d, oldest ACK %d\n", ack, upNode->lastAck);
 
-    gettimeofday(&(upNode->ackArrive), NULL);
+    gettimeofday(&(upNode->pktArrive), NULL);
 
     if (ack > upNode->lastAck) {
         upNode->ackdup = 0;
@@ -460,14 +455,14 @@ void AckQueueProcess(Packet *packet, int peerID){
         int oldestSeq = peekQueue(AckQueue);
 
         while (oldestSeq > 0 && ack >= oldestSeq) {
-            queueNode* temp = dequeue(AckQueue);
+            queueNode *temp = dequeue(AckQueue);
 
             if (ack == getPacketSeq(temp->pkt)) {
                 struct timeval curT;
                 gettimeofday(&curT, NULL);
 
                 int prevTimout = getTimeout();
-                int curTimeout = (2 * (int)(curT.tv_sec - temp->pkt->timestamp.tv_sec) + prevTimout / 2);
+                int curTimeout = ((int) (curT.tv_sec - temp->pkt->timestamp.tv_sec) / 2 + prevTimout / 2);
                 setTimeout(curTimeout);
             }
             free(temp->pkt);
@@ -489,7 +484,7 @@ void AckQueueProcess(Packet *packet, int peerID){
             decreseConn();
 
         }
-    }else {
+    } else {
         if (ack == upNode->lastAck) {
             if (upNode->congestCtl == FAST_RETRANSMIT) {
                 printf("Already in FAST_RETRANSMIT MODE\n");
@@ -522,34 +517,34 @@ void AckQueueProcess(Packet *packet, int peerID){
     return;
 }
 
+void checkTimoutPeer(job* userjob, bt_config_t* config){
+    conn_peer* curDownNode = getDownNodeHead();
 
-void flushDupACK(){
-    conn_peer* cur = getUpNodeHead();
-
-    while (cur != NULL) {
-//        printf("Node ID: %d, last ACK: %d, Dup: %d\n", cur->peerID, cur->lastAck,cur->ackdup);
-        if (cur->ackdup >= MAX_DUP_NUM) {
-            struct timeval curT;
-
-            gettimeofday(&curT, NULL);
-
-            if (curT.tv_sec - cur->ackArrive.tv_sec > 1) {
-                cur->ackdup = 0;
-                queue *q = findDataQueue(cur->peerID);
-
-                if (q != NULL && q->head != NULL) {
-                    Packet *pkt = q->head->pkt;
-                    flushDataQueue(cur->peerID, cur, &pkt->src);
-
-                }
-            }
-        }
-        cur = cur->next;
+    if (curDownNode == NULL) {
+        return;
     }
+
+    while (curDownNode != NULL) {
+        struct timeval curT;
+
+        gettimeofday(&curT, NULL);
+
+        if (curT.tv_sec - curDownNode->pktArrive.tv_sec > PEER_CRASH_TIMEOUT) {
+            printf("peer %d seems crashed\n", curDownNode->peerID);
+            resetChunk(curDownNode->hashhead->chunkHash, userjob);
+            WhoHasRequest(&userjob->chunk_list, config);
+
+            free(curDownNode->buffer);
+            removeDownNode(curDownNode);
+        }
+
+        curDownNode = curDownNode->next;
+    }
+
 }
 
-void flushTimeoutAck(){
-    queue* cur = getAckQueueHead();
+void flushTimeoutAck() {
+    queue *cur = getAckQueueHead();
 
     while (cur != NULL) {
         if (cur->head == NULL) {
@@ -558,7 +553,7 @@ void flushTimeoutAck(){
         }
 
         struct timeval curT;
-        Packet* pkt = cur->head->pkt;
+        Packet *pkt = cur->head->pkt;
 
         gettimeofday(&curT, NULL);
 
@@ -574,7 +569,7 @@ void flushTimeoutAck(){
 
 
             shrinkWin(upnode);
-            if(mergeQueue(cur, findDataQueue(cur->peerID)) < 0) {
+            if (mergeQueue(cur, findDataQueue(cur->peerID)) < 0) {
                 printf("merge failed\n");
             }
 

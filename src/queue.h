@@ -22,6 +22,7 @@ typedef struct queue_t{
 
 void clearqueue(queue *q);
 queueNode* dequeue(queue* q);
+void checkTimoutPeer(job* userjob, bt_config_t* config);
 void enDataQueue(Packet* pkt, int peerID);
 void enUnCfPktQueue(Packet* pkt, int peerID);
 queue *findUnCfPktQueue(int peerID);

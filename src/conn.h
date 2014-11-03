@@ -1,6 +1,7 @@
 #ifndef CONN_H
 #define CONN_H
 
+#include <stddef.h>
 #include "request.h"
 #include "peer.h"
 
@@ -16,12 +17,7 @@ typedef struct connpeer_t {
     int connected;
     int nextExpected;
     int downJob;
-    int numGetMisses;
-    int numDataMisses;
-    int TTL[CHUNK_SIZE];
-    size_t data_length;
     linkNode *hashhead;
-    int down_chunkID;
 
     /*Up Node*/
     int sentSize;
@@ -38,13 +34,14 @@ typedef struct connpeer_t {
     int ssthreshold;
     int roundInc;
     int ackdup;
-    struct timeval ackArrive;
+    struct timeval pktArrive;
 
     struct connpeer_t *prev;
     struct connpeer_t *next;
 } conn_peer;
 
 conn_peer* getUpNodeHead();
+conn_peer* getDownNodeHead();
 conn_peer* getUpNode(int nodeID);
 conn_peer* getDownNode(int nodeID);
 void removeDownNode(conn_peer *Node);

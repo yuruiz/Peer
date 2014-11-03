@@ -5,77 +5,88 @@
 
 #define LINESIZE 8096
 
-extern char **request_queue;
 // check current chunk hash is requested.
-int list_contains(char *chunkHash)
-{
+int list_contains(char *chunkHash, job *userjob) {
     int i;
-    for (i = 0; i < MAX_CHUNK_NUM; i++)
-    {
-        if (request_queue[i] == NULL )
-            continue;
-        else {
+    for (i = 0; i < userjob->chunk_list.chunkNum; i++) {
+        char buf[SHA1_HASH_LENGTH * 2 + 1];
+        binary2hex(userjob->chunk_list.list[i].hash, SHA1_HASH_LENGTH, buf);
 
-    //        printf("%s\n", request_queue[i]);
-            if (strcmp(request_queue[i], chunkHash) == 0) {
+        if (strcmp(buf, chunkHash) == 0) {
+            if (userjob->chunk_list.list[i].status == unfethced) {
                 return i;
             }
-
+            return -1;
         }
-
     }
     return -1;
 }
 
-int list_empty()
-{
+void setChunkDone(char *chunkHash,job *userjob){
     int i;
-    for (i = 0; i < MAX_CHUNK_NUM; i++)
-    {
-        if (request_queue[i] != NULL ){
+    for (i = 0; i < userjob->chunk_list.chunkNum; i++) {
+        char buf[SHA1_HASH_LENGTH * 2 + 1];
+        binary2hex(userjob->chunk_list.list[i].hash, SHA1_HASH_LENGTH, buf);
+
+        if (strcmp(buf, chunkHash) == 0) {
+            userjob->chunk_list.list[i].status = fetched;
+            return;
+        }
+    }
+}
+
+
+void resetChunk(char *chunkHash,job *userjob){
+    int i;
+    for (i = 0; i < userjob->chunk_list.chunkNum; i++) {
+        char buf[SHA1_HASH_LENGTH * 2 + 1];
+        binary2hex(userjob->chunk_list.list[i].hash, SHA1_HASH_LENGTH, buf);
+
+        if (strcmp(buf, chunkHash) == 0) {
+            userjob->chunk_list.list[i].status = unfethced;
+            return;
+        }
+    }
+}
+
+int list_empty(job *userjob) {
+    int i;
+    for (i = 0; i < userjob->chunk_list.chunkNum; i++) {
+        if (userjob->chunk_list.list[i].status == unfethced) {
             return EXIT_FAILURE;
         }
     }
     return EXIT_SUCCESS;
 }
 
-void list_remove(char *chunkHash)
-{
-    int i;
-    for (i = 0; i < MAX_CHUNK_NUM; i++)
-    {
+//void list_remove(char *chunkHash) {
+//    int i;
+//    for (i = 0; i < MAX_CHUNK_NUM; i++) {
+//
+//        if (request_queue[i] == NULL)
+//            continue;
+//        else if (strcmp(request_queue[i], chunkHash) == 0) {
+//            free(request_queue[i]);
+//            request_queue[i] = NULL;
+//            return;
+//        }
+//    }
+//}
 
-        if (request_queue[i] == NULL )
-            continue;
-        else if (strcmp(request_queue[i], chunkHash) == 0)
-        {
-            free(request_queue[i]);
-            request_queue[i] = NULL;
-            return;
-        }
-    }
-}
-
-char **buildChunkList(chunklist *cklist) {
+void buildChunkList(chunklist *cklist) {
 
     char linebuf[LINESIZE];
     int chunkCount = 0;
-    char **chunk_list;
 
-    chunk_list = (char **) malloc(MAX_CHUNK_NUM * sizeof(char *));
-    memset(chunk_list, 0, MAX_HASH_NUM* sizeof(char*));
     if (cklist->chunkfptr == NULL) {
         fprintf(stderr, "chunkfptr is null!\n");
-        return NULL;
+        return;
     }
 
     while (!feof(cklist->chunkfptr)) {
         char hashbuf[LINESIZE];
         memset(hashbuf, 0, LINESIZE);
         int hashindex;
-
-        chunk_list[chunkCount] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
-        memset(chunk_list[chunkCount], 0, SHA1_HASH_LENGTH * 2 + 1);
 
         if (fgets(linebuf, LINESIZE, cklist->chunkfptr) == NULL) {
             break;
@@ -87,16 +98,19 @@ char **buildChunkList(chunklist *cklist) {
         }
 
         cklist->list[chunkCount].seq = hashindex;
+        cklist->list[chunkCount].status = unfethced;
         hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, cklist->list[chunkCount].hash);
-        strncpy(chunk_list[chunkCount], hashbuf, 2* SHA1_HASH_LENGTH);
         chunkCount++;
     }
-    int i = chunkCount;
-    while (i < MAX_CHUNK_NUM)
-        chunk_list[i++] = NULL;
-    cklist->chunkNum = chunkCount;
 
-    return chunk_list;
+    int i;
+    for (i = chunkCount; i < MAX_CHUNK_NUM; i++) {
+        cklist->list[i].status = none;
+    }
+    cklist->chunkNum = chunkCount;
+    cklist->unfetchedNum = chunkCount;
+
+    return;
 
 }
 
@@ -112,14 +126,14 @@ char **retrieve_chunk_list(Packet *incomingPacket) {
 
     for (num_chunks = 0; num_chunks < getHashCount(incomingPacket); num_chunks++) {
         chunk_list[num_chunks] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
-        memset(chunk_list[num_chunks], 0, (SHA1_HASH_LENGTH * 2 + 1)* sizeof(char));
+        memset(chunk_list[num_chunks], 0, (SHA1_HASH_LENGTH * 2 + 1) * sizeof(char));
         head = num_chunks * SHA1_HASH_LENGTH;
         uint8_t buf[SHA1_HASH_LENGTH];
 
-        strncpy((char*)buf, (const char*)incomingPacket->serial + HASH_OFFSET + head, SHA1_HASH_LENGTH);
+        strncpy((char *) buf, (const char *) incomingPacket->serial + HASH_OFFSET + head, SHA1_HASH_LENGTH);
 
         binary2hex(incomingPacket->serial + HASH_OFFSET + head, SHA1_HASH_LENGTH, chunk_list[num_chunks]);
-     //   printf("retrieve: %s\n", chunk_list[num_chunks]);
+        //   printf("retrieve: %s\n", chunk_list[num_chunks]);
     }
 
     return chunk_list;
@@ -144,7 +158,7 @@ char **has_chunks(bt_config_t *config, Packet *p, char **chunk_list) {
         fgets(buf, USERBUF_SIZE, fp);
         memset(chunk, 0, SHA1_HASH_LENGTH * 2 + 1);
         sscanf(buf, "%*d %s", chunk);
-        for (num_chunks = 0; num_chunks < getHashCount(p); num_chunks++){
+        for (num_chunks = 0; num_chunks < getHashCount(p); num_chunks++) {
             if (strncmp(chunk_list[num_chunks], chunk, SHA1_HASH_LENGTH * 2) == 0) {
                 haschunk_list[haschunk_pos] = (char *) malloc(SHA1_HASH_LENGTH * 2 + 1);
                 memset(haschunk_list[haschunk_pos], 0, SHA1_HASH_LENGTH * 2 + 1);

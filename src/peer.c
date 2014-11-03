@@ -23,32 +23,22 @@
 #include "peer.h"
 #include "conn.h"
 #include "queue.h"
+#include "request.h"
 
-/* sliding window control */
-//int nextExpected[BT_MAX_PEERS];
-
-/* reliability control */
-//int numGetMisses[BT_MAX_PEERS];
-//int numDataMisses[BT_MAX_PEERS];
-
-/* time out */
+#define WHOHAS_TIME_OUT 2
+/*Record the time the program start*/
 struct timeval startTime;
-
 static int startsecond;
-//int TTL[BT_MAX_PEERS][CHUNK_SIZE]; // DATA timeout
-//int GETTTL[BT_MAX_PEERS]; // GET timeout
 
-/*record the chunk id currently receiving */
-//short jobs[BT_MAX_PEERS];
+/*check who has request has been answered or not*/
+int whohasAnswered = 1;
+struct timeval whohasSendTime;
 
-/*record all the chunks not finish downloading yet*/
-char **request_queue;
-
-/*record the output file*/
-static char outf[128];
+/*record user commands*/
+static job *userjob = NULL;
 
 /*the program would quit if set to 0*/
-int quit = 1;
+static int quit = 1;
 
 /*record the socket variable*/
 static int _sock;
@@ -58,28 +48,22 @@ static bt_config_t *_config;
 /*the chunks this client current own*/
 static chunklist haschunklist;
 
-
 /*Record the Connection Count*/
 static int numConn = 0;
 
-
 static int Timeout = 0;
 
-// initialize global parameters.
-void peer_init() {
-//    int i, j;
-    struct timeval tvBegin;
-    startTime.tv_sec = tvBegin.tv_sec;
-    startTime.tv_usec = tvBegin.tv_usec;
-    gettimeofday(&tvBegin, NULL);
-//    for (i = 0; i < BT_MAX_PEERS; i++) {
-//        for (j = 0; j < CHUNK_SIZE; j++)
-//            TTL[i][j] = -1;
-//        jobs[i] = -1;
-//        numGetMisses[i] = 0;
-//        numDataMisses[i] = -1;
-//    }
-//    numMismatches = 0;
+void checkWhohas(job* user_job, bt_config_t* config) {
+    if (whohasAnswered == 0) {
+        struct timeval curT;
+
+        gettimeofday(&curT, NULL);
+
+        if (curT.tv_sec - whohasSendTime.tv_sec > WHOHAS_TIME_OUT) {
+            printf("whohas timeout!!\n");
+            WhoHasRequest(&user_job->chunk_list, config);
+        }
+    }
 }
 
 void process_inbound_udp(int sock, bt_config_t *config) {
@@ -121,12 +105,13 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             /*receive IHAVE request*/
             dprintf(STDOUT_FILENO, "IHAVE received\n");
 
+            whohasAnswered = 1;
+
             chunk_list = retrieve_chunk_list(&incomingPacket);
-            printf("retrieve: %s\n", chunk_list[0]);
 
             buildDownNode(nodeInMap, chunk_list, getHashCount(&incomingPacket));
 
-            GetRequest(nodeInMap, &incomingPacket.src);
+            GetRequest(nodeInMap, &incomingPacket.src, userjob);
 
             free_chunks(chunk_list, getHashCount(&incomingPacket));
 
@@ -142,8 +127,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             if ((upNode = getUpNode(nodeInMap)) == NULL) {
                 break;
             }
-
-            upNode->connected = 1;
 
             increaseConn();
 
@@ -163,6 +146,9 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             if (downNode == NULL) {
                 break;
             }
+
+            gettimeofday(&downNode->pktArrive, NULL);
+
             int nextExpected = downNode->nextExpected;
             int pktSeq = getPacketSeq(&incomingPacket);
             if (pktSeq != nextExpected) {
@@ -171,13 +157,11 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
                 memcpy(newPkt, &incomingPacket, sizeof(Packet));
 
-                if(pktSeq > nextExpected) {
+                if (pktSeq > nextExpected) {
                     enUnCfPktQueue(newPkt, nodeInMap);
                 }
-                downNode->numDataMisses = 0;
             }
             else {
-                downNode->numDataMisses = 0;
                 processData(&incomingPacket, downNode->downJob, nodeInMap);
                 printf("Received Packet %d\n", nextExpected);
 
@@ -217,7 +201,11 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
                 if (downNode->receivedSize == BT_CHUNK_SIZE) {
                     FILE *outfile;
-                    outfile = fopen(outf, "r+b");
+                    outfile = fopen(userjob->outputf, "r+b");
+
+                    setChunkDone(curhead->chunkHash, userjob);
+
+                    userjob->chunk_list.unfetchedNum--;
 
                     // look for position to insert a data chunk
                     long int offset = BT_CHUNK_SIZE * downNode->downJob;
@@ -232,15 +220,16 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                         downNode->receivedSize = 0;
                         memset(downNode->buffer, 0, sizeof(char) * BT_CHUNK_SIZE);
                         free(temp);
-                        GetRequest(nodeInMap, &incomingPacket.src);
+                        GetRequest(nodeInMap, &incomingPacket.src, userjob);
                     }
                     else if (curhead->next == NULL) {
                         free(downNode->buffer);
                         removeDownNode(downNode);
-                        downNode->numDataMisses = -1;
-                        if (list_empty() == EXIT_SUCCESS) {
-                            free(request_queue);
-                            printf("JOB is done\n");
+                        decreseConn();
+                        if (list_empty(userjob) == EXIT_SUCCESS) {
+                            free(userjob);
+                            userjob = NULL;
+                            printf("job is done\n");
                         }
                     }
                 }
@@ -268,61 +257,62 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 }
 
 // send out whohas request
-char **process_get(char *chunkfile, char *outputfile) {
-    chunklist requestList;
-    requestList.type = GET;
-    char **chunk_list;
-    printf("Processing GET request %s, %s\n", chunkfile, outputfile);
+void process_get(job* usercommnd) {
+    usercommnd->chunk_list.type = GET;
+    printf("Processing GET request %s, %s\n", usercommnd->chunkf, usercommnd->outputf);
 
-    if ((requestList.chunkfptr = fopen(chunkfile, "r")) == NULL) {
-        fprintf(stderr, "Open file %s failed\n", chunkfile);
-        return NULL;
+    if ((usercommnd->chunk_list.chunkfptr = fopen(usercommnd->chunkf, "r")) == NULL) {
+        fprintf(stderr, "Open file %s failed\n", usercommnd->chunkf);
+        return;
     }
 
-    if ((requestList.ouptputfptr = fopen(outputfile, "w")) == NULL) {
-        fprintf(stderr, "Open file %s failed\n", outputfile);
-        return NULL;
+    if ((usercommnd->chunk_list.ouptputfptr = fopen(usercommnd->outputf, "w")) == NULL) {
+        fprintf(stderr, "Open file %s failed\n", usercommnd->outputf);
+        return;
     }
 
-    chunk_list = buildChunkList(&requestList);
+    buildChunkList(&(usercommnd->chunk_list));
 
-    fclose(requestList.chunkfptr);
+    fclose(usercommnd->chunk_list.chunkfptr);
 
-    if (requestList.chunkNum == 0) {
+    if (usercommnd->chunk_list.chunkNum == 0) {
         printf("There is no chunk in the file\n");
-        return NULL;
+        return;
     }
 
     printf("Chunk file parsed successfully, the parse result is as below\n");
 
     int i;
-    for (i = 0; i < requestList.chunkNum; i++) {
+    for (i = 0; i < usercommnd->chunk_list.chunkNum; i++) {
         char buf[2 * SHA1_HASH_LENGTH + 1];
         bzero(buf, 2 * SHA1_HASH_LENGTH + 1);
-        chunkline *line = &(requestList.list[i]);
+        chunkline *line = &(usercommnd->chunk_list.list[i]);
         binary2hex(line->hash, SHA1_HASH_LENGTH, buf);
         printf("%d: %s\n", line->seq, buf);
     }
 
-    WhoHasRequest(&requestList, _config);
-    return chunk_list;
+    WhoHasRequest(&usercommnd->chunk_list, _config);
+    return;
 }
 
 void handle_user_input(char *line, void *cbdata) {
-    char chunkf[128];
-    char **chunk_list;
 
-    bzero(chunkf, sizeof(chunkf));
-    bzero(outf, sizeof(outf));
+    char chunkf[BT_FILENAME_LEN];
+    char outputf[BT_FILENAME_LEN];
 
-    if (sscanf(line, "GET %120s %120s", chunkf, outf)) {
-        if (strlen(outf) > 0) {
-            if ((chunk_list = process_get(chunkf, outf)) == NULL) {
-                perror("I/O error");
-                exit(-1);
-            }
-            request_queue = chunk_list;
-        }
+    memset(chunkf, 0, BT_FILENAME_LEN * sizeof(char));
+    memset(outputf, 0, BT_FILENAME_LEN * sizeof(char));
+
+
+
+    if (sscanf(line, "GET %120s %120s", chunkf, outputf) == 2) {
+        userjob = malloc(sizeof(job));
+        memset(userjob, 0, sizeof(job));
+
+        memcpy(userjob->chunkf, chunkf, BT_FILENAME_LEN * sizeof(char));
+        memcpy(userjob->outputf, outputf, BT_FILENAME_LEN * sizeof(char));
+
+        process_get(userjob);
     }
     else if (strcmp(line, "quit") == 0) {
         quit = 0;
@@ -389,10 +379,9 @@ void peer_run(bt_config_t *config) {
             }
         }
 
+        checkWhohas(userjob, config);
         flushTimeoutAck();
-//        if (nfds == 0) {
-//            flushDupACK();
-//        }
+        checkTimoutPeer(userjob, config);
     }
 }
 
@@ -406,7 +395,7 @@ void setTimeout(int timeout) {
     Timeout = timeout;
 }
 
-int getTimeout(){
+int getTimeout() {
     return Timeout;
 }
 

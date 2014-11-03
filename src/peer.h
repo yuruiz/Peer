@@ -7,6 +7,7 @@
 #define HASH_LENGTH 20
 #define MAX_CONN 1024
 #define MAX_PEER_NUM 1024
+#define PEER_CRASH_TIMEOUT 5
 #define PACK_SIZE 1500
 #define WIN_SIZE 1
 #define TIME_OUT 4
@@ -17,12 +18,6 @@ typedef struct ln
     struct ln *next;
 } linkNode;
 
-typedef struct command
-{
-	char **request_queue;
-	int command_num;
-	struct command *next;
-} command_list;
 
 
 //short nodeInMap; // the node the packet received from

@@ -19,8 +19,7 @@ struct user_iobuf *create_userbuf() {
     return b;
 }
 
-void process_user_input(int fd, struct user_iobuf *userbuf,
-        void (*handle_line)(char *, void *), void *cbdata) {
+void process_user_input(int fd, struct user_iobuf *userbuf, void (*handle_line)(char *, void *), void *cbdata) {
     int nread;
     char *ret;
 
@@ -35,8 +34,7 @@ void process_user_input(int fd, struct user_iobuf *userbuf,
         exit(-1);
     }
 
-    nread = read(fd, userbuf->buf + userbuf->cur,
-            (USERBUF_SIZE - userbuf->cur));
+    nread = read(fd, userbuf->buf + userbuf->cur, (USERBUF_SIZE - userbuf->cur));
 
     if (nread > 0) {
         userbuf->cur += nread;

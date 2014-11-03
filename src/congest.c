@@ -44,7 +44,7 @@ void expandWin(conn_peer *node) {
             break;
     }
 
-    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, curT.tv_sec - getStartTime(), node->windowSize);
+    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, (int)(curT.tv_sec - getStartTime()), node->windowSize);
     fwrite(linebuf, sizeof(char), strlen(linebuf), output);
     fclose(output);
 
@@ -74,7 +74,7 @@ void shrinkWin(conn_peer *node){
 
     node->windowSize = 1;
 
-    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, curT.tv_sec - getStartTime(), node->windowSize);
+    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, (int)(curT.tv_sec - getStartTime()), node->windowSize);
     fwrite(linebuf, sizeof(char), strlen(linebuf), output);
     fclose(output);
 

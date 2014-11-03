@@ -10,9 +10,8 @@
 #include "chunk.h"
 #include "queue.h"
 
-extern char **request_queue;
-//extern short jobs[BT_MAX_PEERS];
-//extern int nextExpected[BT_MAX_PEERS];
+extern int whohasAnswered;
+struct timeval whohasSendTime;
 
 /*Right now Packet only have the default header, the length now is 16*/
 Packet *buildDefaultPacket() {
@@ -199,10 +198,11 @@ Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config, str
 // build and send out whohas packet. 
 void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
 
-    int packetNum = (cklist->chunkNum + MAX_HASH_NUM - 1) / MAX_HASH_NUM;
-    int hashIndex = 0;
+    int packetNum = (cklist->unfetchedNum + MAX_HASH_NUM - 1) / MAX_HASH_NUM;
     int i;
 
+    whohasAnswered = 0;
+    gettimeofday(&whohasSendTime, 0);
     for (i = 0; i < packetNum; ++i) {
 
         int hashCount, j;
@@ -219,14 +219,16 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
         }
 
         for (j = 0; j < hashCount; ++j) {
-            insertHash(pkt, cklist->list[hashIndex].hash);
+            if (cklist->list[j].status != unfethced) {
+                continue;
+            }
+            insertHash(pkt, cklist->list[j].hash);
             uint8_t buf[SHA1_HASH_LENGTH];
             char buf1[2 * SHA1_HASH_LENGTH + 1];
-            bzero(buf1, 2* SHA1_HASH_LENGTH+1);
-            strncpy((char*)buf, cklist->list[hashIndex].hash, SHA1_HASH_LENGTH);
-            binary2hex(cklist->list[hashIndex].hash, SHA1_HASH_LENGTH, buf1);
+            bzero(buf1, 2 * SHA1_HASH_LENGTH + 1);
+            strncpy((char *) buf, (char *) cklist->list[j].hash, SHA1_HASH_LENGTH);
+            binary2hex(cklist->list[j].hash, SHA1_HASH_LENGTH, buf1);
             printf("send: %s\n", buf1);
-            hashIndex++;
         }
 
         bt_peer_t *p;
@@ -243,8 +245,9 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
         }
 
         free(pkt);
-        return;
     }
+
+    return;
 }
 
 // send back IHAVE message.
@@ -305,7 +308,7 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
     return;
 }
 // send GET message, allow concurrent download.
-void GetRequest(int nodeID, struct sockaddr_in* from)
+void GetRequest(int nodeID, struct sockaddr_in* from, job* userjob)
 {
     Packet *p;
     int index;
@@ -319,21 +322,19 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     linkNode *hashNode = node->hashhead;
 
     if(hashNode == NULL) {
-        printf("GetRequest Error, Cannot get HashNode");
+        printf("GetRequest Error, Cannot get HashNode\n");
         return;
     }
     /*check if the target chunkHash has been transferred*/
-    while ((index = list_contains(hashNode->chunkHash)) < 0) {
-        printf("inside1\n");
+    while ((index = list_contains(hashNode->chunkHash, userjob)) < 0) {
+        printf("inside\n");
         if (hashNode->next == NULL) {
-            if (list_empty() == EXIT_SUCCESS) {
-                free(request_queue);
-                node->numDataMisses = -1;
+            if (list_empty(userjob) == EXIT_SUCCESS) {
+                free(userjob);
                 printf("task is done\n");
             }
             return;
         }
-        printf("inside2\n");
 
         linkNode *temp = hashNode;
         hashNode = hashNode->next;
@@ -368,8 +369,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     free(p);
 
 /*    chunk is transferring, remove it so that other peers won't transfer this again*/
-    free(request_queue[index]);
-    request_queue[index] = NULL;
+    userjob->chunk_list.list[index].status = fetching;
 }
 
 
