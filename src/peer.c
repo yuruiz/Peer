@@ -228,6 +228,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                         decreseConn();
                         free(curhead);
                         if (list_empty(userjob) == EXIT_SUCCESS) {
+                            whohasAnswered = 1;
                             clearUncfPktQueue(nodeInMap);
                             free(userjob);
                             userjob = NULL;
