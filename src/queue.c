@@ -578,7 +578,6 @@ void checkTimoutPeer(job* userjob, bt_config_t* config){
         if (curT.tv_sec - curDownNode->pktArrive.tv_sec > PEER_CRASH_TIMEOUT) {
             printf("peer %d seems crashed\n", curDownNode->peerID);
             resetChunk(curDownNode->hashhead->chunkHash, userjob);
-            WhoHasRequest(&userjob->chunk_list, config);
 
             clearUncfPktQueue(curDownNode->peerID);
 
@@ -590,6 +589,10 @@ void checkTimoutPeer(job* userjob, bt_config_t* config){
 
             free(curDownNode->buffer);
             removeDownNode(curDownNode);
+
+            if (getDownNodeHead() == NULL) {
+                WhoHasRequest(&userjob->chunk_list, config);
+            }
         }
 
         curDownNode = curDownNode->next;
