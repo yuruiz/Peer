@@ -31,5 +31,6 @@ void AckQueueProcess(Packet *packet, int peerID);
 void flushDataQueue(int peerID, conn_peer *connNode, struct sockaddr_in *from);
 void flushTimeoutAck();
 void flushDupACK();
+void clearUncfPktQueue(int peerID);
 
 #endif

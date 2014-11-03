@@ -226,10 +226,14 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                         free(downNode->buffer);
                         removeDownNode(downNode);
                         decreseConn();
+                        free(curhead);
                         if (list_empty(userjob) == EXIT_SUCCESS) {
+                            clearUncfPktQueue(nodeInMap);
                             free(userjob);
                             userjob = NULL;
                             printf("job is done\n");
+                        }else {
+                            WhoHasRequest(&userjob->chunk_list, config);
                         }
                     }
                 }
@@ -243,6 +247,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 break;
             }
 
+            gettimeofday(&upNode->pktArrive, NULL);
             AckQueueProcess(&incomingPacket, nodeInMap);
 
             flushDataQueue(nodeInMap, upNode, &incomingPacket.src);
@@ -379,8 +384,8 @@ void peer_run(bt_config_t *config) {
             }
         }
 
-        checkWhohas(userjob, config);
         flushTimeoutAck();
+        checkWhohas(userjob, config);
         checkTimoutPeer(userjob, config);
     }
 }

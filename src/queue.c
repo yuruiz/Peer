@@ -38,6 +38,7 @@ queue *findUnCfPktQueue(int peerID) {
     return NULL;
 }
 
+
 queue *findDataQueue(int peerID) {
     if (DataQueueList_head == NULL) {
         return NULL;
@@ -388,6 +389,7 @@ void enUnCfPktQueue(Packet *pkt, int peerID) {
 
     newNode->next = NULL;
     newNode->prev = NULL;
+    newNode->hash = NULL;
     newNode->pkt = pkt;
     newNode->seq = getPacketSeq(pkt);
 
@@ -517,10 +519,54 @@ void AckQueueProcess(Packet *packet, int peerID) {
     return;
 }
 
+void clearUncfPktQueue(int peerID){
+    queue* q = findUnCfPktQueue(peerID);
+
+    if (q != NULL) {
+        queueNode *curNode = dequeue(q);
+        while (curNode != NULL) {
+            free(curNode->pkt);
+            free(curNode);
+            curNode = dequeue(q);
+        }
+        removeUnCfPktQueue(q);
+    }
+}
+
+
+void clearDataQueue(int peerID){
+    queue *q = findDataQueue(peerID);
+
+    if (q != NULL) {
+        queueNode *curNode = dequeue(q);
+        while (curNode != NULL) {
+            free(curNode->pkt);
+            free(curNode);
+            curNode = dequeue(q);
+        }
+        removeDataQueue(q);
+    }
+}
+
+void clearAckQueue(int peerID){
+    queue *q = findAckQueue(peerID);
+
+    if (q != NULL) {
+        queueNode *curNode = dequeue(q);
+        while (curNode != NULL) {
+            free(curNode->pkt);
+            free(curNode);
+            curNode = dequeue(q);
+        }
+        removeAckQueue(q);
+    }
+}
+
 void checkTimoutPeer(job* userjob, bt_config_t* config){
     conn_peer* curDownNode = getDownNodeHead();
+    conn_peer* curUpNode = getUpNodeHead();
 
-    if (curDownNode == NULL) {
+    if (curDownNode == NULL && curUpNode == NULL) {
         return;
     }
 
@@ -534,6 +580,14 @@ void checkTimoutPeer(job* userjob, bt_config_t* config){
             resetChunk(curDownNode->hashhead->chunkHash, userjob);
             WhoHasRequest(&userjob->chunk_list, config);
 
+            clearUncfPktQueue(curDownNode->peerID);
+
+            while (curDownNode->hashhead != NULL) {
+                linkNode* temp = curDownNode->hashhead;
+                curDownNode->hashhead = curDownNode->hashhead->next;
+                free(temp);
+            }
+
             free(curDownNode->buffer);
             removeDownNode(curDownNode);
         }
@@ -541,7 +595,25 @@ void checkTimoutPeer(job* userjob, bt_config_t* config){
         curDownNode = curDownNode->next;
     }
 
+    while (curUpNode != NULL) {
+        struct timeval curT;
+
+        gettimeofday(&curT, NULL);
+
+        if (curT.tv_sec - curUpNode->pktArrive.tv_sec > PEER_CRASH_TIMEOUT) {
+            printf("peer %d seems crashed\n", curUpNode->peerID);
+
+            clearDataQueue(curUpNode->peerID);
+            clearAckQueue(curUpNode->peerID);
+
+            removeUpNode(curUpNode);
+        }
+
+        curUpNode = curUpNode->next;
+    }
+
 }
+
 
 void flushTimeoutAck() {
     queue *cur = getAckQueueHead();
@@ -564,7 +636,6 @@ void flushTimeoutAck() {
         }
 
         if (curT.tv_sec - pkt->timestamp.tv_sec > curTime) {
-//            printf("Packet %d time out\n", getPacketSeq(pkt));
             conn_peer *upnode = getUpNode(cur->peerID);
 
 

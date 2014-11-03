@@ -28,6 +28,9 @@ run_client:
 run_server:
 	./peer -p nodes.map -c example/B.haschunks -f example/C.chunks -m 4 -i 2 -d 0
 
+run_server_2:
+	./peer -p nodes.map -c example/B.haschunks -f example/C.chunks -m 4 -i 3 -d 0
+
 spiffy:
 	./hupsim.pl -m topo.map -n nodes.map -p 12345 -v 0 &
 

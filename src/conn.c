@@ -24,6 +24,8 @@ conn_peer* buildUpNode(int nodeID){
     upNode->hashhead = NULL;
     upNode->sentSize = 0;
 
+    gettimeofday(&upNode->pktArrive, NULL);
+
 
     /*Initialize Congestion Control*/
     upNode->lastAck = 0;
@@ -132,8 +134,15 @@ void removeUpNode(conn_peer *Node) {
 
     return;
 }
-conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
-    conn_peer *DownNode = (conn_peer *) malloc(sizeof(conn_peer));
+conn_peer* buildDownNode(int nodeID, char **chunk_list, int size) {
+
+    conn_peer * DownNode = getDownNode(nodeID);
+
+    if (DownNode != NULL) {
+        return DownNode;
+    }
+
+    DownNode = (conn_peer *) malloc(sizeof(conn_peer));
     DownNode->peerID = nodeID;
     DownNode->windowSize = 0;
     DownNode->ackdup = 0;
@@ -149,7 +158,7 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size){
     gettimeofday(&DownNode->pktArrive, NULL);
 
     int i;
-    linkNode* curNode;
+    linkNode *curNode;
     for (i = 0; i < size; i++) {
         linkNode *temp = (linkNode *) malloc(sizeof(linkNode));
         temp->next = NULL;
