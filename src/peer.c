@@ -205,7 +205,9 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
                     setChunkDone(curhead->chunkHash, userjob);
 
-                    userjob->chunk_list.unfetchedNum--;
+                    if (userjob->chunk_list.unfetchedNum > 0) {
+                        userjob->chunk_list.unfetchedNum--;
+                    }
 
                     // look for position to insert a data chunk
                     long int offset = BT_CHUNK_SIZE * downNode->downJob;
