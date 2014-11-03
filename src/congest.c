@@ -33,7 +33,6 @@ void expandWin(conn_peer *node) {
             }
             break;
         case FAST_RETRANSMIT:
-            printf("now in FAST_RETRINSMIT, last ACK is %d\n", lastlostACk);
             node->windowSize++;
             if (node->lastAck > lastlostACk) {
                 node->congestCtl = SLOW_START;

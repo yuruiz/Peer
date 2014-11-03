@@ -447,7 +447,7 @@ void AckQueueProcess(Packet *packet, int peerID) {
         return;
     }
 
-    printf("receive ack %d, oldest ACK %d\n", ack, upNode->lastAck);
+//    printf("receive ack %d, oldest ACK %d\n", ack, upNode->lastAck);
 
     gettimeofday(&(upNode->pktArrive), NULL);
 
@@ -489,14 +489,11 @@ void AckQueueProcess(Packet *packet, int peerID) {
     } else {
         if (ack == upNode->lastAck) {
             if (upNode->congestCtl == FAST_RETRANSMIT) {
-                printf("Already in FAST_RETRANSMIT MODE\n");
                 return;
             }
             upNode->ackdup++;
-            printf("duplicate ack received\n");
 
             if (upNode->ackdup >= MAX_DUP_NUM) {
-                printf("%d duplicate Ack %d received\n", MAX_DUP_NUM, ack);
 
                 struct timeval curT;
                 gettimeofday(&curT, NULL);

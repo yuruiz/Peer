@@ -13,7 +13,7 @@ int list_contains(char *chunkHash, job *userjob) {
         binary2hex(userjob->chunk_list.list[i].hash, SHA1_HASH_LENGTH, buf);
 
         if (strcmp(buf, chunkHash) == 0) {
-            if (userjob->chunk_list.list[i].status == unfethced) {
+            if (userjob->chunk_list.list[i].status == unfetched) {
                 return i;
             }
             return -1;
@@ -43,7 +43,7 @@ void resetChunk(char *chunkHash,job *userjob){
         binary2hex(userjob->chunk_list.list[i].hash, SHA1_HASH_LENGTH, buf);
 
         if (strcmp(buf, chunkHash) == 0) {
-            userjob->chunk_list.list[i].status = unfethced;
+            userjob->chunk_list.list[i].status = unfetched;
             return;
         }
     }
@@ -52,7 +52,7 @@ void resetChunk(char *chunkHash,job *userjob){
 int list_empty(job *userjob) {
     int i;
     for (i = 0; i < userjob->chunk_list.chunkNum; i++) {
-        if (userjob->chunk_list.list[i].status == unfethced) {
+        if (userjob->chunk_list.list[i].status == unfetched) {
             return EXIT_FAILURE;
         }
     }
@@ -98,7 +98,7 @@ void buildChunkList(chunklist *cklist) {
         }
 
         cklist->list[chunkCount].seq = hashindex;
-        cklist->list[chunkCount].status = unfethced;
+        cklist->list[chunkCount].status = unfetched;
         hex2binary(hashbuf, 2 * SHA1_HASH_LENGTH, cklist->list[chunkCount].hash);
         chunkCount++;
     }

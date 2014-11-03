@@ -219,7 +219,7 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
         }
 
         for (j = 0; j < hashCount; ++j) {
-            if (cklist->list[j].status != unfethced) {
+            if (cklist->list[j].status != unfetched) {
                 continue;
             }
             insertHash(pkt, cklist->list[j].hash);
@@ -228,7 +228,6 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
             bzero(buf1, 2 * SHA1_HASH_LENGTH + 1);
             strncpy((char *) buf, (char *) cklist->list[j].hash, SHA1_HASH_LENGTH);
             binary2hex(cklist->list[j].hash, SHA1_HASH_LENGTH, buf1);
-            printf("send: %s\n", buf1);
         }
 
         bt_peer_t *p;
@@ -330,6 +329,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from, job* userjob)
         printf("inside\n");
         if (hashNode->next == NULL) {
             if (list_empty(userjob) == EXIT_SUCCESS) {
+                whohasAnswered = 1;
                 free(userjob);
                 printf("task is done\n");
             }

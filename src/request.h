@@ -35,7 +35,7 @@ typedef enum packType{
 }Type;
 
 typedef enum _chunk_status{
-    unfethced, fetching, fetched, none
+    unfetched, fetching, fetched, none
 }chunk_status;
 
 typedef struct {
