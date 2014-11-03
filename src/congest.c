@@ -4,6 +4,8 @@
 
 #define CONGEST_OUTPUT_FILE "problem2-peer.txt"
 
+static int lastlostACk = 0;
+
 void expandWin(conn_peer *node) {
 
     FILE *output = fopen(CONGEST_OUTPUT_FILE, "a");
@@ -30,6 +32,13 @@ void expandWin(conn_peer *node) {
                 node->roundInc = 0;
             }
             break;
+        case FAST_RETRANSMIT:
+            printf("now in FAST_RETRINSMIT, last ACK is %d\n", lastlostACk);
+            node->windowSize++;
+            if (node->lastAck > lastlostACk) {
+                node->congestCtl = SLOW_START;
+            }
+            break;
         default:
             printf("Expand windows error! Unknown congestion control mode!\n");
             break;
@@ -43,8 +52,9 @@ void expandWin(conn_peer *node) {
 
 
 void shrinkWin(conn_peer *node){
-    node->congestCtl = SLOW_START;
+    node->congestCtl = FAST_RETRANSMIT;
 
+    lastlostACk = node->lastAck;
     FILE *output = fopen(CONGEST_OUTPUT_FILE, "a");
 
     struct timeval curT;
@@ -53,7 +63,7 @@ void shrinkWin(conn_peer *node){
 
     gettimeofday(&curT, NULL);
 
-    printf("Now Shringking window size from %d to %d\n", node->windowSize, node->windowSize/2);
+    printf("Now Shringking window size from %d to 1\n", node->windowSize);
     if (node->windowSize > 4) {
         node->ssthreshold = node->windowSize/2;
     }

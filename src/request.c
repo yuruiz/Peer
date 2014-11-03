@@ -166,7 +166,7 @@ Packet* buildDataPacket(int seq, int chunkID, int size, bt_config_t* config, str
     incPacketSize(newPacket, size);
     setPacketSeq(newPacket, seq);
 
-    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * PACKET_DATA_SIZE;
+    long fileoffset = chunkID * BT_CHUNK_SIZE + (seq - 1) * DATA_SIZE;
 
     char* masterfile = config->master_data_file;
 
@@ -284,18 +284,15 @@ void DataRequest(bt_config_t *config, Packet *request, chunklist *haschunklist, 
         return;
     }
 
-    int numPacket = (BT_CHUNK_SIZE + PACKET_DATA_SIZE - 1) / PACKET_DATA_SIZE;
+    int numPacket = CHUNK_SIZE;
 
     int i;
 
     for (i = 0; i < numPacket; ++i) {
         Packet *newPacket;
-        if (i < numPacket - 1) {
-            newPacket = buildDataPacket(i + 1, hashIndex, PACKET_DATA_SIZE, config, &request->src);
-        }
-        else{
-            newPacket = buildDataPacket(i + 1, hashIndex, BT_CHUNK_SIZE % PACKET_DATA_SIZE, config, &request->src);
-        }
+
+        newPacket = buildDataPacket(i + 1, hashIndex, DATA_SIZE, config, &request->src);
+
 
         if (newPacket == NULL) {
             return;
@@ -325,7 +322,7 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
         printf("GetRequest Error, Cannot get HashNode");
         return;
     }
-    // check if the target chunkHash has been transferred
+    /*check if the target chunkHash has been transferred*/
     while ((index = list_contains(hashNode->chunkHash)) < 0) {
         printf("inside1\n");
         if (hashNode->next == NULL) {
@@ -366,17 +363,11 @@ void GetRequest(int nodeID, struct sockaddr_in* from)
     // jobs[nodeID] = getHashIndex(hashNode->chunkHash, haschunklist);
     node->downJob = index;
 
-//
-//    printf("Requesting chunk ID: %d from %d\n", jobs[nodeID], nodeID);
 
     node->nextExpected = 1;
- //   nextExpected[nodeID] = 1;
-//    GETTTL[nodeInMap] = 0;
     free(p);
 
-    // chunk is transferring, remove it so that
-    // other peers won't transfer this again
-//    list_remove(request_queue[]);
+/*    chunk is transferring, remove it so that other peers won't transfer this again*/
     free(request_queue[index]);
     request_queue[index] = NULL;
 }

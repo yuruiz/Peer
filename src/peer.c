@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <CoreFoundation/CoreFoundation.h>
 #include "debug.h"
 #include "spiffy.h"
 #include "bt_parse.h"
@@ -165,16 +164,19 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                 break;
             }
             int nextExpected = downNode->nextExpected;
-            if (getPacketSeq(&incomingPacket) != nextExpected) {
+            int pktSeq = getPacketSeq(&incomingPacket);
+            if (pktSeq != nextExpected) {
                 ACKrequest(&incomingPacket.src, nextExpected - 1);
                 Packet *newPkt = malloc(sizeof(Packet));
 
                 memcpy(newPkt, &incomingPacket, sizeof(Packet));
 
-                enUnCfPktQueue(newPkt, nodeInMap);
+                if(pktSeq > nextExpected) {
+                    enUnCfPktQueue(newPkt, nodeInMap);
+                }
                 downNode->numDataMisses = 0;
             }
-            else if (getPacketSeq(&incomingPacket) == nextExpected) {
+            else {
                 downNode->numDataMisses = 0;
                 processData(&incomingPacket, downNode->downJob, nodeInMap);
                 printf("Received Packet %d\n", nextExpected);
@@ -254,9 +256,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
             AckQueueProcess(&incomingPacket, nodeInMap);
 
-            if (upNode->ackdup < MAX_DUP_NUM) {
-                flushDataQueue(nodeInMap, upNode, &incomingPacket.src);
-            }
+            flushDataQueue(nodeInMap, upNode, &incomingPacket.src);
             break;
         case 5:
             break;
@@ -390,9 +390,9 @@ void peer_run(bt_config_t *config) {
         }
 
         flushTimeoutAck();
-        if (nfds == 0) {
-            flushDupACK();
-        }
+//        if (nfds == 0) {
+//            flushDupACK();
+//        }
     }
 }
 
@@ -406,7 +406,7 @@ void setTimeout(int timeout) {
     Timeout = timeout;
 }
 
-int getTimeout() {
+int getTimeout(){
     return Timeout;
 }
 

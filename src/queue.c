@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
-#include <CoreFoundation/CoreFoundation.h>
 #include "queue.h"
 #include "spiffy.h"
 #include "congest.h"
@@ -446,18 +445,19 @@ void AckQueueProcess(Packet *packet, int peerID){
         return;
     }
 
-    if((oldestSeq = peekQueue(AckQueue)) < 0){
-        /*AckQueue is empty*/
-        return;
-    }
+//    if((oldestSeq = peekQueue(AckQueue)) < 0){
+//        /*AckQueue is empty*/
+//        return;
+//    }
 
-    printf("receive ack %d, oldest ACK %d\n", ack, oldestSeq);
+    printf("receive ack %d, oldest ACK %d\n", ack, upNode->lastAck);
 
     gettimeofday(&(upNode->ackArrive), NULL);
 
-    if (ack >= oldestSeq) {
+    if (ack > upNode->lastAck) {
         upNode->ackdup = 0;
         upNode->lastAck = ack;
+        int oldestSeq = peekQueue(AckQueue);
 
         while (oldestSeq > 0 && ack >= oldestSeq) {
             queueNode* temp = dequeue(AckQueue);
@@ -476,7 +476,7 @@ void AckQueueProcess(Packet *packet, int peerID){
             expandWin(upNode);
         }
 
-        if (ack == (BT_CHUNK_SIZE + PACKET_DATA_SIZE - 1) / PACKET_DATA_SIZE) {
+        if (ack == CHUNK_SIZE) {
             printf("Data transmisstion finished\n");
             removeDataQueue(findDataQueue(peerID));
             removeAckQueue(findAckQueue(peerID));
@@ -491,6 +491,10 @@ void AckQueueProcess(Packet *packet, int peerID){
         }
     }else {
         if (ack == upNode->lastAck) {
+            if (upNode->congestCtl == FAST_RETRANSMIT) {
+                printf("Already in FAST_RETRANSMIT MODE\n");
+                return;
+            }
             upNode->ackdup++;
             printf("duplicate ack received\n");
 
@@ -523,7 +527,7 @@ void flushDupACK(){
     conn_peer* cur = getUpNodeHead();
 
     while (cur != NULL) {
-        printf("Node ID: %d, last ACK: %d, Dup: %d\n", cur->peerID, cur->lastAck,cur->ackdup);
+//        printf("Node ID: %d, last ACK: %d, Dup: %d\n", cur->peerID, cur->lastAck,cur->ackdup);
         if (cur->ackdup >= MAX_DUP_NUM) {
             struct timeval curT;
 

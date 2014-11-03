@@ -8,7 +8,7 @@
 #define INIT_THRESH 64
 
 typedef enum _congMode{
-    SLOW_START, CONGEST_AVOID
+    SLOW_START, CONGEST_AVOID, FAST_RETRANSMIT
 }mode;
 
 typedef struct connpeer_t {
