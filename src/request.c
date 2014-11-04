@@ -202,7 +202,7 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
     int i;
 
     whohasAnswered = 0;
-    gettimeofday(&whohasSendTime, 0);
+    gettimeofday(&whohasSendTime, NULL);
     for (i = 0; i < packetNum; ++i) {
 
         int hashCount, j;
@@ -228,6 +228,7 @@ void WhoHasRequest(chunklist *cklist, bt_config_t *config) {
             bzero(buf1, 2 * SHA1_HASH_LENGTH + 1);
             strncpy((char *) buf, (char *) cklist->list[j].hash, SHA1_HASH_LENGTH);
             binary2hex(cklist->list[j].hash, SHA1_HASH_LENGTH, buf1);
+            printf("Chunk Hash: %s\n", buf1);
         }
 
         bt_peer_t *p;
@@ -326,9 +327,11 @@ void GetRequest(int nodeID, struct sockaddr_in* from, job* userjob)
     }
     /*check if the target chunkHash has been transferred*/
     while ((index = list_contains(hashNode->chunkHash, userjob)) < 0) {
-        printf("inside\n");
         if (hashNode->next == NULL) {
-            if (list_empty(userjob) == EXIT_SUCCESS) {
+            free(node->buffer);
+            removeDownNode(node);
+            decreseConn();
+            if (list_empty(userjob) == EXIT_SUCCESS && getDownNodeHead() == NULL) {
                 whohasAnswered = 1;
                 free(userjob);
                 printf("task is done\n");

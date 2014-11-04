@@ -8,6 +8,7 @@
 #include "chunk.h"
 #include "chunklist.h"
 
+#define PEER_TIMOUT_CNT 3
 /*Data Queues Link list*/
 static queue *DataQueueList_head = NULL;
 static queue *DataQueueList_tail = NULL;
@@ -574,9 +575,23 @@ void checkTimoutPeer(job* userjob, bt_config_t* config){
 
         if (curT.tv_sec - curDownNode->pktArrive.tv_sec > PEER_CRASH_TIMEOUT) {
             printf("peer %d seems crashed\n", curDownNode->peerID);
-            resetChunk(curDownNode->hashhead->chunkHash, userjob);
+            if (curDownNode->hashhead != NULL) {
+                resetChunk(curDownNode->hashhead->chunkHash, userjob);
+            }
 
             clearUncfPktQueue(curDownNode->peerID);
+
+
+            curDownNode->timoutCnt++;
+            curDownNode->receivedSize = 0;
+
+
+            if (curDownNode->timoutCnt < PEER_TIMOUT_CNT) {
+                gettimeofday(&curDownNode->pktArrive, NULL);
+                memset(curDownNode->buffer, 0, BT_CHUNK_SIZE);
+                GetRequest(curDownNode->peerID, &curDownNode->src, userjob);
+                return;
+            }
 
             while (curDownNode->hashhead != NULL) {
                 linkNode* temp = curDownNode->hashhead;

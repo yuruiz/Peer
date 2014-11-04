@@ -14,11 +14,18 @@ void expandWin(conn_peer *node) {
     char linebuf[200];
     memset(linebuf, 0, 200 * sizeof(char));
 
+    struct timeval *startT = getStartTime();
+
     gettimeofday(&curT, NULL);
+
+    int diff = (int) (1000 * (curT.tv_sec - startT->tv_sec) + curT.tv_usec - startT->tv_usec);
 
     switch (node->congestCtl) {
         case SLOW_START:
             node->windowSize++;
+
+            sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, diff, node->windowSize);
+            fwrite(linebuf, sizeof(char), strlen(linebuf), output);
 
             if (node->windowSize >= node->ssthreshold) {
                 node->congestCtl = CONGEST_AVOID;
@@ -30,6 +37,8 @@ void expandWin(conn_peer *node) {
             if (node->roundInc >= node->windowSize) {
                 node->windowSize++;
                 node->roundInc = 0;
+                sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, diff, node->windowSize);
+                fwrite(linebuf, sizeof(char), strlen(linebuf), output);
             }
             break;
         case FAST_RETRANSMIT:
@@ -43,14 +52,13 @@ void expandWin(conn_peer *node) {
             break;
     }
 
-    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, (int)(curT.tv_sec - getStartTime()), node->windowSize);
-    fwrite(linebuf, sizeof(char), strlen(linebuf), output);
+
     fclose(output);
 
 }
 
 
-void shrinkWin(conn_peer *node){
+void shrinkWin(conn_peer *node) {
     node->congestCtl = FAST_RETRANSMIT;
 
     lastlostACk = node->lastAck;
@@ -64,16 +72,18 @@ void shrinkWin(conn_peer *node){
 
     printf("Now Shringking window size from %d to 1\n", node->windowSize);
     if (node->windowSize > 4) {
-        node->ssthreshold = node->windowSize/2;
+        node->ssthreshold = node->windowSize / 2;
     }
-    else{
+    else {
         node->ssthreshold = 2;
     }
     printf("The Slow Start Threshold is now %d\n", node->ssthreshold);
 
     node->windowSize = 1;
 
-    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, (int)(curT.tv_sec - getStartTime()), node->windowSize);
+    struct timeval *startT = getStartTime();
+    int diff = (int) (1000 * (curT.tv_sec - startT->tv_sec) + curT.tv_usec - startT->tv_usec);
+    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, diff, node->windowSize);
     fwrite(linebuf, sizeof(char), strlen(linebuf), output);
     fclose(output);
 

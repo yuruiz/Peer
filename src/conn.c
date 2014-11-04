@@ -134,7 +134,7 @@ void removeUpNode(conn_peer *Node) {
 
     return;
 }
-conn_peer* buildDownNode(int nodeID, char **chunk_list, int size) {
+conn_peer* buildDownNode(int nodeID, char **chunk_list, int size, struct sockaddr_in* from) {
 
     conn_peer * DownNode = getDownNode(nodeID);
 
@@ -152,8 +152,11 @@ conn_peer* buildDownNode(int nodeID, char **chunk_list, int size) {
     DownNode->nextExpected = -1;
     DownNode->downJob = -1;
     DownNode->receivedSize = 0;
+    DownNode->timoutCnt = 0;
     DownNode->buffer = malloc(sizeof(char) * BT_CHUNK_SIZE);
     memset(DownNode->buffer, 0, sizeof(char) * BT_CHUNK_SIZE);
+
+    memcpy(&DownNode->src, from, sizeof(struct sockaddr_in));
 
     gettimeofday(&DownNode->pktArrive, NULL);
 

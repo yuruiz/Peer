@@ -10,7 +10,7 @@
 #define PEER_CRASH_TIMEOUT 5
 #define PACK_SIZE 1500
 #define WIN_SIZE 1
-#define TIME_OUT 4
+#define TIME_OUT 1
 
 typedef struct ln
 {
@@ -33,5 +33,5 @@ void increaseConn();
 void decreseConn();
 int getTimeout();
 void setTimeout(int timeout);
-int getStartTime();
+struct timeval* getStartTime();
 #endif /* _PEER_H_ */

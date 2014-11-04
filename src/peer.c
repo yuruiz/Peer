@@ -28,7 +28,6 @@
 #define WHOHAS_TIME_OUT 2
 /*Record the time the program start*/
 struct timeval startTime;
-static int startsecond;
 
 /*check who has request has been answered or not*/
 int whohasAnswered = 1;
@@ -109,7 +108,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
             chunk_list = retrieve_chunk_list(&incomingPacket);
 
-            buildDownNode(nodeInMap, chunk_list, getHashCount(&incomingPacket));
+            buildDownNode(nodeInMap, chunk_list, getHashCount(&incomingPacket), &incomingPacket.src);
 
             GetRequest(nodeInMap, &incomingPacket.src, userjob);
 
@@ -141,7 +140,7 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             break;
         case 3:
             /*receive DATA request*/
-            printf("receive data:%d\n", getPacketSeq(&incomingPacket));
+//            printf("receive packet %d from peer %d\n", getPacketSeq(&incomingPacket), nodeInMap);
             downNode = getDownNode(nodeInMap);
             if (downNode == NULL) {
                 break;
@@ -163,7 +162,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
             }
             else {
                 processData(&incomingPacket, downNode->downJob, nodeInMap);
-                printf("Received Packet %d\n", nextExpected);
 
                 queue *UnCFQueue = findUnCfPktQueue(nodeInMap);
 
@@ -181,7 +179,6 @@ void process_inbound_udp(int sock, bt_config_t *config) {
 
                         if (nextNode->seq == downNode->nextExpected) {
                             processData(nextNode->pkt, downNode->downJob, nodeInMap);
-                            printf("get data seq %d\n", downNode->nextExpected);
                             downNode->nextExpected++;
                         }
 
@@ -229,13 +226,12 @@ void process_inbound_udp(int sock, bt_config_t *config) {
                         removeDownNode(downNode);
                         decreseConn();
                         free(curhead);
-                        if (list_empty(userjob) == EXIT_SUCCESS) {
+                        if (list_empty(userjob) == EXIT_SUCCESS && getDownNodeHead() == NULL) {
                             whohasAnswered = 1;
-                            clearUncfPktQueue(nodeInMap);
                             free(userjob);
                             userjob = NULL;
                             printf("job is done\n");
-                        }else {
+                        } else if(getDownNodeHead() == NULL) {
                             WhoHasRequest(&userjob->chunk_list, config);
                         }
                     }
@@ -438,8 +434,8 @@ void increaseConn() {
     }
 }
 
-int getStartTime() {
-    return startsecond;
+struct timeval* getStartTime() {
+    return &startTime;
 }
 
 int main(int argc, char **argv) {
@@ -447,12 +443,7 @@ int main(int argc, char **argv) {
 
     gettimeofday(&startTime, NULL);
 
-    startsecond = startTime.tv_sec;
-
-    printf("%d\n", startsecond);
-
     bt_init(&config, argc, argv);
-//    peer_init();
 
     DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
 

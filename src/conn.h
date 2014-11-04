@@ -25,6 +25,8 @@ typedef struct connpeer_t {
     /*Down Node*/
     int receivedSize;
     char* buffer;
+    int timoutCnt;
+    struct sockaddr_in src;
 
     /*Congestion Control*/
     mode congestCtl;
@@ -45,7 +47,7 @@ conn_peer* getDownNodeHead();
 conn_peer* getUpNode(int nodeID);
 conn_peer* getDownNode(int nodeID);
 void removeDownNode(conn_peer *Node);
-conn_peer* buildDownNode(int nodeID, char **chunk_list, int size);
+conn_peer* buildDownNode(int nodeID, char **chunk_list, int size, struct sockaddr_in* from);
 void insertNewupNode(conn_peer *newNode);
 void removeUpNode(conn_peer *Node);
 #endif
