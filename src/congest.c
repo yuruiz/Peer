@@ -18,13 +18,13 @@ void expandWin(conn_peer *node) {
 
     gettimeofday(&curT, NULL);
 
-    int diff = (int) (1000 * (curT.tv_sec - startT->tv_sec) + curT.tv_usec - startT->tv_usec);
+    long diff =  (1000 * (curT.tv_sec - startT->tv_sec) + (curT.tv_usec - startT->tv_usec) / 1000);
 
     switch (node->congestCtl) {
         case SLOW_START:
             node->windowSize++;
 
-            sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, diff, node->windowSize);
+            sprintf(linebuf, "%d\t%ld\t%d\n", node->peerID, diff, node->windowSize);
             fwrite(linebuf, sizeof(char), strlen(linebuf), output);
 
             if (node->windowSize >= node->ssthreshold) {
@@ -37,7 +37,7 @@ void expandWin(conn_peer *node) {
             if (node->roundInc >= node->windowSize) {
                 node->windowSize++;
                 node->roundInc = 0;
-                sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, diff, node->windowSize);
+                sprintf(linebuf, "%d\t%ld\t%d\n", node->peerID, diff, node->windowSize);
                 fwrite(linebuf, sizeof(char), strlen(linebuf), output);
             }
             break;
@@ -82,8 +82,8 @@ void shrinkWin(conn_peer *node) {
     node->windowSize = 1;
 
     struct timeval *startT = getStartTime();
-    int diff = (int) (1000 * (curT.tv_sec - startT->tv_sec) + curT.tv_usec - startT->tv_usec);
-    sprintf(linebuf, "%d\t%d\t%d\n", node->peerID, diff, node->windowSize);
+    long diff =  (1000 * (curT.tv_sec - startT->tv_sec) + (curT.tv_usec - startT->tv_usec) / 1000);
+    sprintf(linebuf, "%d\t%ld\t%d\n", node->peerID, diff, node->windowSize);
     fwrite(linebuf, sizeof(char), strlen(linebuf), output);
     fclose(output);
 

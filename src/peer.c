@@ -27,7 +27,7 @@
 
 #define WHOHAS_TIME_OUT 2
 /*Record the time the program start*/
-struct timeval startTime;
+static struct timeval startTime;
 
 /*check who has request has been answered or not*/
 int whohasAnswered = 1;
